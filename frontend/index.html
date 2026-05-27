@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能车牌查询与准入认证系统</title>
+    <!-- Google 字体 -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- FontAwesome 图标 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- 背景流光装饰 -->
+    <div class="bg-glow bg-glow-1"></div>
+    <div class="bg-glow bg-glow-2"></div>
+
+    <div class="app-container">
+        <!-- 头部顶栏 -->
+        <header class="app-header">
+            <div class="logo">
+                <i class="fa-solid fa-shield-cat logo-icon"></i>
+                <span class="logo-text">PLATE<span class="logo-highlight">SHIELD</span></span>
+            </div>
+            <div class="header-actions">
+                <span class="status-indicator offline" id="backendStatus">
+                    <span class="status-dot"></span>
+                    <span class="status-text">代理服务未就绪</span>
+                </span>
+                <button class="btn btn-secondary" id="openConfigBtn">
+                    <i class="fa-solid fa-sliders"></i> 接口配置
+                </button>
+            </div>
+        </header>
+
+        <!-- 主体布局 -->
+        <main class="app-body">
+            <!-- 查询主卡片 -->
+            <section class="glass-panel search-panel">
+                <div class="panel-header">
+                    <div class="panel-header-left">
+                        <h1 class="panel-title">车辆准入智能校验终端</h1>
+                        <p class="panel-subtitle">日常查询仅比对本地数据，离线零延迟响应</p>
+                    </div>
+                    <div class="sync-control">
+                        <span class="sync-time" id="syncTimeDisplay">上次同步: 未同步数据</span>
+                        <button class="btn btn-secondary btn-small" id="syncDataBtn">
+                            <i class="fa-solid fa-arrows-rotate"></i> 一键同步最新数据
+                        </button>
+                    </div>
+                </div>
+
+                <div class="search-box-container">
+                    <div class="search-box">
+                        <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                        <input type="text" id="plateInput" placeholder="输入车牌号（例如：粤B88888）" autocomplete="off" maxlength="8">
+                        <button class="btn btn-primary" id="searchBtn">
+                            <i class="fa-solid fa-arrow-right"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 快速检索提示 -->
+                <div class="quick-hints">
+                    <span class="hint-label">快捷示例:</span>
+                    <span class="hint-tag" onclick="fillPlate('京A88888')">京A88888</span>
+                    <span class="hint-tag" onclick="fillPlate('粤B12345D')">粤B12345D (新能源)</span>
+                </div>
+            </section>
+
+            <!-- 状态卡片展示区 -->
+            <section class="result-container" id="resultContainer" style="display: none;">
+                <!-- 加载中 -->
+                <div class="glass-panel state-card loading-state" id="loadingState" style="display: none;">
+                    <div class="spinner-container">
+                        <div class="tech-spinner"></div>
+                        <i class="fa-solid fa-network-wired spinner-center"></i>
+                    </div>
+                    <h3 class="state-title">正在建立安全信道</h3>
+                    <p class="state-desc">正在代理请求官方数据源，自动进行 DFS 智能数据提取...</p>
+                </div>
+
+                <!-- 准入通过 -->
+                <div class="glass-panel state-card success-state" id="successState" style="display: none;">
+                    <!-- 可导出 PDF 的证明卡片 -->
+                    <div class="permit-card-wrapper" id="permitCard">
+                        <div class="permit-header">
+                            <div class="permit-badge">
+                                <i class="fa-solid fa-circle-check"></i> 准入通过 / APPROVED
+                            </div>
+                            <span class="permit-serial" id="permitSerial">NO. 8392019</span>
+                        </div>
+                        
+                        <div class="permit-body">
+                            <div class="permit-hero">
+                                <div class="plate-badge" id="successPlate">粤B88888</div>
+                                <div class="permit-desc">该车辆已在当前工地系统中完成合法备案，允许正常通行</div>
+                            </div>
+                            
+                            <div class="permit-grid">
+                                <div class="grid-item">
+                                    <span class="item-label"><i class="fa-solid fa-helmet-safety"></i> 工地/项目名称</span>
+                                    <span class="item-value" id="successWorksite">总台超高清示范园工程</span>
+                                </div>
+                                <div class="grid-item">
+                                    <span class="item-label"><i class="fa-solid fa-shield-halved"></i> 安全校验评级</span>
+                                    <span class="item-value text-green"><i class="fa-solid fa-star"></i> 绿码安全级别</span>
+                                </div>
+                                <div class="grid-item">
+                                    <span class="item-label"><i class="fa-solid fa-calendar-check"></i> 校验时刻</span>
+                                    <span class="item-value" id="successTime">2026-05-27 16:39:05</span>
+                                </div>
+                                <div class="grid-item">
+                                    <span class="item-label"><i class="fa-solid fa-truck"></i> 报备状态</span>
+                                    <span class="item-value">系统已认证并盖章</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="permit-footer">
+                            <div class="stamp-container">
+                                <div class="permit-stamp">已备案</div>
+                            </div>
+                            <div class="footer-note">本电子证明基于 ztxn.capcloud.com.cn 数据中枢实时自动清洗生成</div>
+                        </div>
+                    </div>
+
+                    <!-- PDF 下载动作区（已根据用户要求隐藏，专注于备案总表 PDF 导出） -->
+                    <div class="action-bar" style="display: none;">
+                        <button class="btn btn-success btn-large" id="downloadPdfBtn">
+                            <i class="fa-solid fa-file-pdf"></i> 保存为 PDF 准入凭证
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 暂未备案 -->
+                <div class="glass-panel state-card fail-state" id="failState" style="display: none;">
+                    <div class="state-icon-wrapper text-orange animate-pulse">
+                        <i class="fa-solid fa-circle-exclamation"></i>
+                    </div>
+                    <h2 class="state-title text-orange">暂未备案 / UNREGISTERED</h2>
+                    <div class="fail-plate-display" id="failPlate">粤B99999</div>
+                    <p class="state-desc" id="failDesc">在当前工地数据源中未检索到该车辆备案信息。请通知司机前往大堂补充报备材料。</p>
+                    
+                    <div class="worksite-note">
+                        <i class="fa-solid fa-circle-info"></i> 当前查询项目：<span id="failWorksite" class="text-white">总台超高清示范园工程</span>
+                    </div>
+                </div>
+
+                <!-- 异常报错 -->
+                <div class="glass-panel state-card error-state" id="errorState" style="display: none;">
+                    <div class="state-icon-wrapper text-red">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                    </div>
+                    <h3 class="state-title text-red">代理服务请求失败</h3>
+                    <p class="state-desc" id="errorText">authtoken 可能已过期失效，请重新获取并更新您的接口配置。</p>
+                </div>
+            </section>
+
+            <!-- 已备案车辆总览表 (全量 PDF 导出区域) -->
+            <section class="glass-panel vehicles-table-panel" id="vehiclesTablePanel">
+                <div class="table-panel-header">
+                    <div class="table-header-left">
+                        <h2 class="table-panel-title">
+                            <i class="fa-solid fa-list-check logo-icon-cyan"></i> 工地合作运输企业信息总表
+                        </h2>
+                        <p class="table-panel-subtitle" id="tableWorksiteDisplay">备案工地: 暂无本地同步数据</p>
+                    </div>
+                    <button class="btn btn-success" id="downloadTablePdfBtn">
+                        <i class="fa-solid fa-file-pdf"></i> 导出 PDF 备案总表
+                    </button>
+                </div>
+                
+                <!-- 表格一：正式合作运输企业信息 -->
+                <div class="enterprise-section" style="margin-bottom: 36px;">
+                    <h3 style="font-size: 16px; font-weight: 700; color: var(--neon-cyan); margin-bottom: 16px; border-left: 3px solid var(--neon-cyan); padding-left: 10px; display: flex; align-items: center; gap: 8px;">
+                        <i class="fa-solid fa-handshake"></i> 合作运输企业信息
+                    </h3>
+                    <div class="table-responsive">
+                        <table class="modern-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 280px; text-align: left;">企业名称</th>
+                                    <th>地址</th>
+                                    <th style="width: 100px; text-align: center;">使用车辆数</th>
+                                    <th style="width: 520px;">车牌号</th>
+                                    <th style="width: 150px;">负责人联系方式</th>
+                                </tr>
+                            </thead>
+                            <tbody id="transportsTableBody">
+                                <tr>
+                                    <td colspan="5" class="table-empty">
+                                        <i class="fa-solid fa-folder-open empty-icon"></i>
+                                        <p>本地尚未同步数据，请点击上方“一键同步最新数据”进行初始化拉取！</p>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- 表格二：临时合作运输企业信息 -->
+                <div class="enterprise-section">
+                    <h3 style="font-size: 16px; font-weight: 700; color: var(--neon-orange); margin-bottom: 16px; border-left: 3px solid var(--neon-orange); padding-left: 10px; display: flex; align-items: center; gap: 8px;">
+                        <i class="fa-solid fa-calendar-minus"></i> 临时合作运输企业信息
+                    </h3>
+                    <div class="table-responsive">
+                        <table class="modern-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 280px; text-align: left;">企业名称</th>
+                                    <th>地址</th>
+                                    <th style="width: 100px; text-align: center;">使用车辆数</th>
+                                    <th style="width: 380px;">车牌号</th>
+                                    <th style="width: 110px; text-align: center;">开始时间</th>
+                                    <th style="width: 110px; text-align: center;">结束时间</th>
+                                    <th style="width: 150px;">负责人联系方式</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tempTransportsTableBody">
+                                <tr>
+                                    <td colspan="7" class="table-empty">
+                                        <i class="fa-solid fa-folder-open empty-icon"></i>
+                                        <p>本地尚未同步数据，请点击上方“一键同步最新数据”进行初始化拉取！</p>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- 接口配置滑动抽屉 -->
+    <div class="drawer-overlay" id="drawerOverlay"></div>
+    <div class="config-drawer" id="configDrawer">
+        <div class="drawer-header">
+            <h3 class="drawer-title"><i class="fa-solid fa-sliders"></i> 接口参数配置</h3>
+            <button class="close-drawer-btn" id="closeConfigBtn"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="drawer-body">
+            <div class="form-group">
+                <label class="form-label" for="tokenInput">授权密钥 (authtoken)</label>
+                <textarea id="tokenInput" class="form-input text-monospace" rows="12" placeholder="贴入 JWT 格式的 authtoken 密钥..."></textarea>
+                <span class="form-help">每次请求目标接口时，后端代理会自动携带此密钥进行安全认证。</span>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group col-6">
+                    <label class="form-label" for="worksiteIdInput">工地 ID (id)</label>
+                    <input type="text" id="worksiteIdInput" class="form-input" value="225642">
+                </div>
+                <div class="form-group col-6">
+                    <label class="form-label" for="worksiteTypeInput">类型 (worksitetype)</label>
+                    <input type="text" id="worksiteTypeInput" class="form-input" value="1">
+                </div>
+            </div>
+
+            <button class="btn btn-primary btn-full" id="saveConfigBtn">
+                <i class="fa-solid fa-floppy-disk"></i> 保存并应用配置
+            </button>
+        </div>
+    </div>
+
+    <!-- 外部 html2pdf.js CDN 资源 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>

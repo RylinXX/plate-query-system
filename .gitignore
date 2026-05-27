@@ -1,0 +1,13 @@
+# 虚拟环境排除
+backend/venv/
+
+# Python 编译缓存排除
+**/__pycache__/
+*.pyc
+
+# 测试缓存排除
+.pytest_cache/
+.pytest_cache/
+
+# 本地数据持久化文件排除 (日常比对使用，无需纳入 Git)
+backend/data.json
