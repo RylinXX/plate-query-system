@@ -6,6 +6,7 @@ import httpx
 import re
 import os
 import json
+import hashlib
 from datetime import datetime
 
 # 获取根路径与本地数据持久化路径
@@ -47,6 +48,94 @@ class QueryRequest(BaseModel):
     worksitetype: str = "1"
 
 
+class LoginTokenRequest(BaseModel):
+    username: str
+    password: str
+    code: str
+    uuid: str = ""
+
+
+REMOTE_BASE_URL = "http://ztxn.capcloud.com.cn:8080/dregs_service-dev"
+REMOTE_ORIGIN = "http://ztxn.capcloud.com.cn:8080"
+REMOTE_REFERER = "http://ztxn.capcloud.com.cn:8080/dist/index.html"
+
+
+def _remote_headers(authtoken: str = "") -> Dict[str, str]:
+    return {
+        "Accept": "*/*",
+        "Accept-Language": "zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7",
+        "Content-Type": "application/json",
+        "Origin": REMOTE_ORIGIN,
+        "Referer": REMOTE_REFERER,
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
+        "authtoken": authtoken,
+    }
+
+
+def _is_business_success(data: Dict[str, Any]) -> bool:
+    code = data.get("code")
+    success = data.get("success")
+    if success is False:
+        return False
+    if code is None:
+        return True
+    return str(code) in ("2000", "200", "0")
+
+
+def _business_message(data: Dict[str, Any], fallback: str) -> str:
+    return str(data.get("message") or data.get("msg") or fallback)
+
+
+def _remote_error_detail(data: Any, fallback: str) -> Dict[str, Any]:
+    if not isinstance(data, dict):
+        return {
+            "message": fallback,
+            "remote": data,
+        }
+
+    remote = {
+        key: data.get(key)
+        for key in ("code", "message", "msg", "success", "result")
+        if key in data
+    }
+    return {
+        "message": _business_message(data, fallback),
+        "remote": remote or data,
+    }
+
+
+def _extract_token(data: Any) -> Optional[str]:
+    token_keys = ("token", "authtoken", "authToken", "access_token", "accessToken")
+    if isinstance(data, dict):
+        for key in token_keys:
+            value = data.get(key)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+        for value in data.values():
+            found = _extract_token(value)
+            if found:
+                return found
+    elif isinstance(data, list):
+        for item in data:
+            found = _extract_token(item)
+            if found:
+                return found
+    return None
+
+
+def _build_login_payload(username: str, password: str, code: str, uuid: str = "") -> Dict[str, Any]:
+    password_md5 = hashlib.md5(password.encode("utf-8")).hexdigest()
+    return {
+        "identifierCode": "pc",
+        "uuid": uuid.strip(),
+        "userInfo": {
+            "username": username.strip(),
+            "pwd": password_md5,
+        },
+        "kaptcha": code.strip(),
+    }
+
+
 def _dfs_extract_plates_and_info(data: Any, foundPlates: set, infoDict: dict):
     """
     深度优先搜索 (DFS) 算法：递归遍历任意复杂的 JSON 结构，
@@ -77,6 +166,114 @@ def _dfs_extract_plates_and_info(data: Any, foundPlates: set, infoDict: dict):
                         infoDict["worksite_name"] = valStripped
             
             _dfs_extract_plates_and_info(val, foundPlates, infoDict)
+
+
+@app.get("/api/login/captcha")
+async def login_captcha():
+    targetUrl = f"{REMOTE_BASE_URL}/login/getCode"
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(targetUrl, headers=_remote_headers())
+    except httpx.RequestError as exc:
+        raise HTTPException(
+            status_code=504,
+            detail=f"获取验证码失败，请检查网络或目标系统状态: {exc}",
+        )
+
+    if response.status_code != 200:
+        raise HTTPException(
+            status_code=response.status_code,
+            detail=f"目标系统验证码接口返回 HTTP {response.status_code}",
+        )
+
+    try:
+        responseData = response.json()
+    except Exception:
+        raise HTTPException(
+            status_code=502,
+            detail="目标系统验证码接口返回的不是合法 JSON",
+        )
+
+    if not isinstance(responseData, dict) or not _is_business_success(responseData):
+        raise HTTPException(
+            status_code=400,
+            detail=_remote_error_detail(responseData, "验证码获取失败"),
+        )
+
+    resultObj = responseData.get("result") or {}
+    img = resultObj.get("img") or responseData.get("img")
+    uuid = resultObj.get("uuid") or responseData.get("uuid") or ""
+    if not isinstance(img, str) or not img.strip():
+        raise HTTPException(
+            status_code=502,
+            detail="目标系统验证码接口未返回图片数据",
+        )
+
+    img = img.strip()
+    if not img.startswith("data:image/"):
+        img = f"data:image/jpeg;base64,{img}"
+
+    return {
+        "success": True,
+        "img": img,
+        "uuid": str(uuid),
+    }
+
+
+@app.post("/api/login/token")
+async def login_token(payload: LoginTokenRequest):
+    username = payload.username.strip()
+    password = payload.password
+    code = payload.code.strip()
+    uuid = payload.uuid.strip()
+    if not username or not password or not code:
+        raise HTTPException(
+            status_code=400,
+            detail="账号、密码和验证码不能为空",
+        )
+
+    targetUrl = f"{REMOTE_BASE_URL}/login"
+    loginPayload = _build_login_payload(username, password, code, uuid)
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.post(targetUrl, headers=_remote_headers(), json=loginPayload)
+    except httpx.RequestError as exc:
+        raise HTTPException(
+            status_code=504,
+            detail=f"登录目标系统失败，请检查网络或目标系统状态: {exc}",
+        )
+
+    if response.status_code != 200:
+        raise HTTPException(
+            status_code=response.status_code,
+            detail=f"目标系统登录接口返回 HTTP {response.status_code}",
+        )
+
+    try:
+        responseData = response.json()
+    except Exception:
+        raise HTTPException(
+            status_code=502,
+            detail="目标系统登录接口返回的不是合法 JSON",
+        )
+
+    if not isinstance(responseData, dict) or not _is_business_success(responseData):
+        raise HTTPException(
+            status_code=400,
+            detail=_remote_error_detail(responseData, "登录失败，请检查账号、密码或验证码"),
+        )
+
+    token = _extract_token(responseData)
+    if not token:
+        raise HTTPException(
+            status_code=502,
+            detail=_remote_error_detail(responseData, "登录成功但目标系统未返回 token"),
+        )
+
+    return {
+        "success": True,
+        "authtoken": token,
+    }
 
 
 @app.post("/api/sync-data")

@@ -240,6 +240,37 @@
             <button class="close-drawer-btn" id="closeConfigBtn"><i class="fa-solid fa-xmark"></i></button>
         </div>
         <div class="drawer-body">
+            <div class="login-token-panel">
+                <div class="login-token-title">
+                    <i class="fa-solid fa-key"></i>
+                    <span>账号登录获取 Token</span>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="loginUsernameInput">账号</label>
+                    <input type="text" id="loginUsernameInput" class="form-input" autocomplete="username" placeholder="输入目标系统账号">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="loginPasswordInput">密码</label>
+                    <input type="password" id="loginPasswordInput" class="form-input" autocomplete="current-password" placeholder="输入目标系统密码">
+                </div>
+                <div class="captcha-row">
+                    <div class="captcha-image-box">
+                        <img id="captchaImage" alt="验证码">
+                    </div>
+                    <button class="btn btn-secondary captcha-refresh-btn" id="refreshCaptchaBtn" type="button" title="刷新验证码">
+                        <i class="fa-solid fa-arrows-rotate"></i>
+                    </button>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="captchaCodeInput">验证码</label>
+                    <input type="text" id="captchaCodeInput" class="form-input" autocomplete="off" placeholder="输入图片验证码">
+                </div>
+                <button class="btn btn-success btn-full" id="autoLoginBtn" type="button">
+                    <i class="fa-solid fa-right-to-bracket"></i> 登录并写入 Token
+                </button>
+                <span class="form-help" id="loginStatus">账号和密码仅用于本次登录请求，不会保存到本地配置。</span>
+            </div>
+
             <div class="form-group">
                 <label class="form-label" for="tokenInput">授权密钥 (authtoken)</label>
                 <textarea id="tokenInput" class="form-input text-monospace" rows="12" placeholder="贴入 JWT 格式的 authtoken 密钥..."></textarea>
@@ -265,6 +296,6 @@
 
     <!-- 外部 html2pdf.js CDN 资源 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-    <script src="app.js"></script>
+    <script src="app-runtime.js"></script>
 </body>
 </html>
