@@ -4,7 +4,7 @@ const BACKEND_URL = window.location.origin;
 // 缓存与配置管理
 const CONFIG_KEY = "PLATE_QUERY_CONFIG";
 
-const DEFAULT_TOKEN = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ5bHRkc3QiLCJyb2xlSWQiOjExLCJpcCI6IjE5Mi4xNDEuNS44MyIsInVzZXJOYW1lIjoieWx0ZHN0IiwiZW50ZXJwcmlzZW5hbWUiOiLkuK3lpK7lub_mkq3nlLXop4bmgLvlj7DotoXpq5jmuIXnpLrojIPlm63lt6XnqIso5ryU5pKt6KeG5ZCs5Lit5b-DKSIsInNpdGV0eXBlIjoi5bel56iL57G7IiwidXNlcklkIjoyNzA4MTcsImlkZW50aWZpZXJDb2RlIjoicGMiLCJkaXN0cmljdCI6IumXqOWktOayn-WMuiIsImVudGVycHJpc2V0eXBlIjoi5bel5ZywIiwicm9sZU5hbWUiOiLlt6XlnLDotJ_otKPkuroiLCJlbnRlcnByaXNlaWQiOjIyNTY0MiwiZXhwIjoxODY2MjcyNjg1LCJiZWlhbmlkIjoyMjU2NDJ9.buu01Z_DvQd1hxbTKrpC8Z0Z0v2xxEOb9ceSwopzdbY";
+const DEFAULT_TOKEN = "";
 
 let appConfig = {
     authtoken: DEFAULT_TOKEN,
@@ -436,7 +436,7 @@ async function performSearch() {
 
         if (!response.ok) {
             errorState.style.display = "block";
-            errorText.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> ${data.detail || "本地�// 核心已备案车辆总表 PDF 生成器 (克隆临时高密度 A4 打印 DOM，支持双企业表格1:1经典呈现)
+            errorText.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> ${data.detail || "本地�// 核心已备案车辆总表 PDF 生成器 (克隆临时高密度 A4 打印 DOM，支持双企业表格1:1经典呈现)
 function generateTablePDF() {
     if (!fetchedTransports.length && !fetchedTempTransports.length) {
         alert("本地尚无合作运输企业数据记录，无法导出！");
