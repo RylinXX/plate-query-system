@@ -13,6 +13,215 @@
     --neon-red: #b42318;
     --font-outfit: 'Outfit', 'Inter', -apple-system, sans-serif;
     --font-inter: 'Inter', -apple-system, sans-serif;
+    
+    /* 车牌 Chip 默认暗色底变量 */
+    --chip-bg: rgba(255, 255, 255, 0.06);
+    --chip-border: rgba(255, 255, 255, 0.1);
+    --chip-text: #ffffff;
+}
+
+/* 白天模式 (Light Mode) 变量覆盖 */
+[data-theme="light"] {
+    --bg-dark: #f1f5f9;
+    --card-bg: rgba(255, 255, 255, 0.88);
+    --card-border: rgba(47, 111, 179, 0.18);
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --neon-blue: #1d4ed8;
+    --neon-cyan: #0284c7;
+    --neon-green: #0f766e;
+    --neon-green-solid: #059669;
+    --neon-orange: #ea580c;
+    --neon-red: #dc2626;
+    
+    /* 车牌 Chip 白天模式变量 */
+    --chip-bg: rgba(15, 23, 42, 0.06);
+    --chip-border: rgba(15, 23, 42, 0.1);
+    --chip-text: #0f172a;
+}
+
+/* 白天模式下的结构及样式重写 */
+[data-theme="light"] body {
+    background:
+        linear-gradient(180deg, rgba(235, 242, 250, 0.96) 0%, rgba(241, 245, 249, 1) 48%, rgba(248, 250, 252, 1) 100%),
+        var(--bg-dark);
+}
+
+[data-theme="light"] .bg-glow-1 {
+    background: radial-gradient(circle, rgba(47, 111, 179, 0.15) 0%, transparent 70%);
+}
+
+[data-theme="light"] .bg-glow-2 {
+    background: radial-gradient(circle, rgba(197, 138, 31, 0.08) 0%, transparent 70%);
+}
+
+[data-theme="light"] .glass-panel {
+    box-shadow: 0 14px 36px rgba(15, 34, 55, 0.05);
+}
+
+[data-theme="light"] .panel-title,
+[data-theme="light"] .table-panel-title {
+    background: linear-gradient(135deg, #0f172a 0%, #334155 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+[data-theme="light"] .search-box {
+    background: rgba(255, 255, 255, 0.9);
+    border-color: rgba(47, 111, 179, 0.2);
+}
+
+[data-theme="light"] .search-box input {
+    color: var(--text-primary);
+}
+
+[data-theme="light"] .search-box input::placeholder {
+    color: rgba(15, 23, 42, 0.35);
+}
+
+[data-theme="light"] .hint-tag {
+    background: rgba(47, 111, 179, 0.08);
+    border-color: rgba(47, 111, 179, 0.15);
+    color: var(--neon-blue);
+}
+
+[data-theme="light"] .hint-tag:hover {
+    background: rgba(47, 111, 179, 0.16);
+    border-color: rgba(47, 111, 179, 0.3);
+    color: var(--neon-blue);
+}
+
+[data-theme="light"] .permit-card-wrapper {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(240, 246, 252, 0.98) 100%);
+    box-shadow: 0 14px 34px rgba(15, 34, 55, 0.06);
+}
+
+[data-theme="light"] .plate-badge {
+    background: linear-gradient(180deg, #0f172a 0%, #475569 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+[data-theme="light"] .item-value {
+    color: var(--text-primary);
+}
+
+[data-theme="light"] .permit-stamp {
+    border-color: rgba(5, 150, 105, 0.5);
+    color: rgba(5, 150, 105, 0.7);
+}
+
+[data-theme="light"] .footer-note {
+    color: rgba(15, 23, 42, 0.35);
+}
+
+[data-theme="light"] .fail-plate-display {
+    background: rgba(234, 88, 12, 0.06);
+    border-color: rgba(234, 88, 12, 0.25);
+}
+
+[data-theme="light"] .worksite-note {
+    background: rgba(255, 255, 255, 0.7);
+    border-color: rgba(47, 111, 179, 0.15);
+}
+
+[data-theme="light"] .modern-table th {
+    background: rgba(226, 232, 240, 0.9);
+    color: var(--text-primary);
+    border-bottom-color: rgba(47, 111, 179, 0.15);
+}
+
+[data-theme="light"] .modern-table td {
+    color: var(--text-primary);
+    border-bottom-color: rgba(47, 111, 179, 0.08);
+}
+
+[data-theme="light"] .modern-table tbody tr:nth-child(even) {
+    background: rgba(15, 23, 42, 0.015);
+}
+
+[data-theme="light"] .modern-table tbody tr:hover {
+    background: rgba(37, 99, 235, 0.06);
+}
+
+[data-theme="light"] .select-style option {
+    background: #ffffff;
+    color: #0f172a;
+}
+
+[data-theme="light"] .tab-btn:hover {
+    color: var(--text-primary);
+    background: rgba(15, 23, 42, 0.04);
+}
+
+[data-theme="light"] .tab-btn.active {
+    color: var(--neon-blue);
+    background: rgba(37, 99, 235, 0.08);
+    border-color: rgba(37, 99, 235, 0.25);
+    box-shadow: 0 0 12px rgba(37, 99, 235, 0.08);
+}
+
+[data-theme="light"] .status-indicator {
+    background: rgba(255, 255, 255, 0.8);
+    border-color: rgba(47, 111, 179, 0.15);
+}
+
+[data-theme="light"] .config-drawer {
+    background: #ffffff;
+    border-left-color: rgba(47, 111, 179, 0.15);
+}
+
+[data-theme="light"] .form-input {
+    background: rgba(255, 255, 255, 0.9);
+    color: var(--text-primary);
+    border-color: rgba(47, 111, 179, 0.2);
+}
+
+[data-theme="light"] .form-input:focus {
+    background: #ffffff;
+    border-color: var(--neon-blue);
+}
+
+[data-theme="light"] .login-token-panel {
+    background: rgba(241, 245, 249, 0.9);
+    border-color: rgba(47, 111, 179, 0.15);
+}
+
+[data-theme="light"] .modal-container {
+    background: #ffffff;
+    border-color: rgba(47, 111, 179, 0.2);
+    box-shadow: 0 20px 50px rgba(15, 34, 55, 0.12);
+}
+
+[data-theme="light"] .modal-title,
+[data-theme="light"] .qr-code-step-title,
+[data-theme="light"] .qr-code-plate {
+    color: var(--text-primary);
+}
+
+[data-theme="light"] .modal-header,
+[data-theme="light"] .modal-footer {
+    border-color: rgba(47, 111, 179, 0.12);
+}
+
+[data-theme="light"] .qr-code-plate {
+    background: rgba(15, 23, 42, 0.04);
+    border-color: rgba(15, 23, 42, 0.08);
+}
+
+[data-theme="light"] .btn-secondary {
+    background: rgba(255, 255, 255, 0.85);
+    border-color: rgba(47, 111, 179, 0.24);
+    color: var(--text-primary);
+}
+
+[data-theme="light"] .btn-secondary:hover {
+    background: rgba(47, 111, 179, 0.08);
+    border-color: rgba(47, 111, 179, 0.38);
+}
+
+[data-theme="light"] .stat-badge strong {
+    color: var(--text-primary);
 }
 
 /* 基础重置 */
@@ -903,6 +1112,36 @@ body {
     background: rgba(47, 111, 179, 0.12);
 }
 
+/* 运单表 9 列全局最小宽度与排版控制，防止大屏或中屏下内容严重挤压变形 */
+#waybillsTablePanelSection .modern-table {
+    min-width: 1200px;
+}
+
+#waybillsTablePanelSection .modern-table td {
+    vertical-align: middle;
+}
+
+/* 核心短数据列禁止折行 */
+#waybillsTablePanelSection .modern-table td:nth-child(1), /* 状态 */
+#waybillsTablePanelSection .modern-table td:nth-child(2), /* 车牌号 */
+#waybillsTablePanelSection .modern-table td:nth-child(6), /* 垃圾类型 */
+#waybillsTablePanelSection .modern-table td:nth-child(7), /* 运量 */
+#waybillsTablePanelSection .modern-table td:nth-child(8), /* 出发时间 */
+#waybillsTablePanelSection .modern-table td:nth-child(9) { /* 到达时间 */
+    white-space: nowrap;
+}
+
+/* 针对长文本列进行精密宽度分配与换行控制，消除“单字一竖条”现象 */
+#waybillsTablePanelSection .modern-table td:nth-child(3), /* 工地名称 */
+#waybillsTablePanelSection .modern-table td:nth-child(4), /* 消纳地点 */
+#waybillsTablePanelSection .modern-table td:nth-child(5) { /* 运输企业 */
+    white-space: normal;
+    min-width: 180px;
+    max-width: 260px;
+    word-break: break-all;
+    line-height: 1.45;
+}
+
 .table-empty {
     text-align: center;
     padding: 64px 0 !important;
@@ -1115,6 +1354,22 @@ body {
         padding: 18px 16px 56px;
     }
 
+    .tab-nav {
+        gap: 6px;
+        margin-bottom: 18px;
+        border-bottom: 1.5px solid rgba(142, 170, 201, 0.12);
+        padding-bottom: 6px;
+    }
+
+    .tab-btn {
+        flex: 1;
+        font-size: 13px;
+        padding: 8px 6px;
+        gap: 4px;
+        justify-content: center;
+        white-space: nowrap;
+    }
+
     .app-header {
         align-items: flex-start;
         flex-wrap: wrap;
@@ -1267,20 +1522,59 @@ body {
     .table-responsive {
         border: 1px solid rgba(255, 255, 255, 0.06);
         border-radius: 12px;
+        width: 100%;
+        max-width: 100%;
+        overflow-x: auto;
+        display: block;
+        -webkit-overflow-scrolling: touch;
+        position: relative;
     }
 
     .modern-table {
-        min-width: 680px;
+        table-layout: auto;
     }
 
+    /* 合作企业列表（5列）最小宽度 */
+    .enterprise-section:first-of-type .modern-table {
+        min-width: 850px;
+    }
+
+    /* 临时合作企业列表（7列）最小宽度 */
     .enterprise-section:last-child .modern-table {
-        min-width: 780px;
+        min-width: 1020px;
+    }
+
+    /* 实时运单监控列表（9列）最小宽度 */
+    #waybillsTablePanelSection .modern-table {
+        min-width: 1200px;
     }
 
     .modern-table th,
     .modern-table td {
         padding: 12px 10px;
         font-size: 13px;
+        white-space: nowrap; /* 核心列如车牌禁止折行，确保整洁 */
+        vertical-align: middle;
+    }
+
+    /* 针对长文本列进行精准控制，防止文字折行变成单字竖条，同时规定合理宽度 */
+    #waybillsTablePanelSection .modern-table td:nth-child(3), /* 工地名称 */
+    #waybillsTablePanelSection .modern-table td:nth-child(4), /* 消纳地点 */
+    #waybillsTablePanelSection .modern-table td:nth-child(5) { /* 运输企业 */
+        white-space: normal;
+        min-width: 180px;
+        max-width: 250px;
+        word-break: break-all;
+        line-height: 1.45;
+    }
+
+    .enterprise-section .modern-table td:nth-child(1), /* 企业名称 */
+    .enterprise-section .modern-table td:nth-child(2) { /* 地址 */
+        white-space: normal;
+        min-width: 160px;
+        max-width: 220px;
+        word-break: break-all;
+        line-height: 1.45;
     }
 
     .table-empty {
@@ -1380,4 +1674,762 @@ body {
     text-align: right;
     max-width: 280px;
     line-height: 1.4;
+}
+
+/* ==========================================================================
+   新增 Tab 导航与运单监控筛选页面样式
+   ========================================================================== */
+
+/* Tab 切换栏 */
+.tab-nav {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 24px;
+    border-bottom: 1.5px solid rgba(142, 170, 201, 0.16);
+    padding-bottom: 8px;
+}
+
+.tab-btn {
+    background: none;
+    border: none;
+    outline: none;
+    color: var(--text-secondary);
+    font-size: 15px;
+    font-weight: 600;
+    padding: 10px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid transparent;
+}
+
+.tab-btn:hover {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.tab-btn.active {
+    color: #ffffff;
+    background: rgba(47, 111, 179, 0.16);
+    border: 1px solid rgba(121, 169, 216, 0.32);
+    box-shadow: 0 0 12px rgba(47, 111, 179, 0.16);
+}
+
+/* 筛选表单网格 */
+.filter-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+@media (max-width: 900px) {
+    .filter-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 600px) {
+    .filter-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.filter-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    border-top: 1px solid rgba(142, 170, 201, 0.12);
+    padding-top: 16px;
+}
+
+/* 下拉框自定义样式 */
+.select-style {
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23a9b8c8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'></polyline></svg>");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+    background-size: 16px;
+    padding-right: 40px !important;
+}
+
+.select-style option {
+    background: #0f2237;
+    color: #ffffff;
+}
+
+/* 状态徽章与呼吸灯效果 */
+.badge-shipping {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    background: rgba(31, 143, 106, 0.12);
+    border: 1px solid rgba(31, 143, 106, 0.3);
+    border-radius: 6px;
+    color: #4ade80;
+    font-weight: 700;
+    font-size: 12px;
+    box-shadow: 0 0 8px rgba(31, 143, 106, 0.2);
+}
+
+.badge-shipping::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    background: #4ade80;
+    border-radius: 50%;
+    display: inline-block;
+    animation: pulse-shipping 1.2s infinite ease-in-out;
+}
+
+.badge-completed {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    background: rgba(47, 111, 179, 0.12);
+    border: 1px solid rgba(47, 111, 179, 0.3);
+    border-radius: 6px;
+    color: #60a5fa;
+    font-weight: 700;
+    font-size: 12px;
+}
+
+@keyframes pulse-shipping {
+    0% {
+        transform: scale(0.9);
+        box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.7);
+    }
+    70% {
+        transform: scale(1.1);
+        box-shadow: 0 0 0 6px rgba(74, 222, 128, 0);
+    }
+    100% {
+        transform: scale(0.9);
+        box-shadow: 0 0 0 0 rgba(74, 222, 128, 0);
+    }
+}
+
+/* 汇总统计组件 */
+.waybill-summary-stats {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.stat-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: rgba(47, 111, 179, 0.14);
+    border: 1px solid rgba(121, 169, 216, 0.24);
+    border-radius: 8px;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.stat-badge strong {
+    color: #ffffff;
+    font-family: var(--font-outfit);
+    font-size: 14px;
+}
+
+.badge-error {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    background: rgba(180, 35, 24, 0.12);
+    border: 1px solid rgba(180, 35, 24, 0.3);
+    border-radius: 6px;
+    color: #f87171;
+    font-weight: 700;
+    font-size: 12px;
+}
+
+.badge-warning {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    background: rgba(197, 138, 31, 0.12);
+    border: 1px solid rgba(197, 138, 31, 0.3);
+    border-radius: 6px;
+    color: var(--neon-orange);
+    font-weight: 700;
+    font-size: 12px;
+}
+
+/* ==========================================================================
+   简易扫码助手页面专用样式
+   ========================================================================== */
+
+/* 车辆扫码网格 */
+.qr-vehicles-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 12px;
+    margin-bottom: 32px;
+}
+
+@media (max-width: 600px) {
+    .qr-vehicles-grid {
+        grid-template-columns: repeat(auto-fill, minmax(145px, 1fr));
+        gap: 10px;
+    }
+}
+
+/* 车辆扫码卡片 */
+.qr-vehicle-card {
+    background: var(--card-bg);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--card-border);
+    border-radius: 10px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    position: relative;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.15);
+}
+
+.qr-vehicle-card:hover {
+    border-color: rgba(121, 169, 216, 0.36);
+    box-shadow: 0 14px 30px rgba(47, 111, 179, 0.12);
+    transform: translateY(-2px);
+}
+
+/* 卡片顶部：车牌与删除按钮 */
+.qr-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.qr-delete-btn {
+    background: none;
+    border: none;
+    color: rgba(248, 113, 113, 0.4);
+    cursor: pointer;
+    font-size: 14px;
+    padding: 6px;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+}
+
+.qr-delete-btn:hover {
+    color: rgba(248, 113, 113, 1);
+    background: rgba(248, 113, 113, 0.1);
+}
+
+/* 中国特色车牌样式 */
+.qr-plate {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: var(--font-outfit), sans-serif;
+    font-weight: 700;
+    font-size: 12px;
+    letter-spacing: 0.2px;
+    text-align: center;
+    white-space: nowrap; /* 绝对禁止折行 */
+}
+
+/* 经典蓝牌 */
+.plate-blue {
+    background: linear-gradient(180deg, #1e4bb8 0%, #0a3375 100%);
+    color: #ffffff;
+    border: 1px solid #ffffff;
+    box-shadow: 0 0 0 1px #0a3375, 0 2px 6px rgba(10, 51, 117, 0.35);
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.3);
+}
+
+/* 新新能源绿牌 */
+.plate-green {
+    background: linear-gradient(180deg, #ffffff 0%, #86efac 30%, #166534 100%);
+    color: #000000;
+    border: 1px solid #ffffff;
+    box-shadow: 0 0 0 1px #166534, 0 2px 6px rgba(22, 101, 52, 0.25);
+    text-shadow: 0 0.5px 0.5px rgba(255, 255, 255, 0.5);
+}
+
+
+
+/* 动作按钮区域 */
+.qr-action-area {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 8px;
+}
+
+.btn-qr-action {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 6px 4px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    border: none;
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+}
+
+.qr-action-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    width: 100%;
+}
+
+.qr-action-time {
+    font-size: 10px;
+    color: var(--text-secondary);
+    font-family: var(--font-outfit);
+    flex-shrink: 0;
+    text-align: right;
+    white-space: nowrap;
+}
+
+/* 工地扫码按钮样式 */
+.btn-qr-worksite {
+    background: linear-gradient(180deg, #3d7fc2 0%, var(--neon-blue) 100%);
+    color: #ffffff;
+    box-shadow: 0 4px 12px rgba(47, 111, 179, 0.2);
+}
+
+.btn-qr-worksite:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(47, 111, 179, 0.35);
+}
+
+/* 土点扫码按钮样式 */
+.btn-qr-dump {
+    background: linear-gradient(180deg, #d99726 0%, var(--neon-orange) 100%);
+    color: #ffffff;
+    box-shadow: 0 4px 12px rgba(197, 138, 31, 0.2);
+}
+
+.btn-qr-dump:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(197, 138, 31, 0.35);
+}
+
+/* 锁定/已完成状态 */
+.btn-qr-locked {
+    background: rgba(255, 255, 255, 0.07) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    color: rgba(255, 255, 255, 0.3) !important;
+    cursor: not-allowed;
+    box-shadow: none !important;
+    transform: none !important;
+}
+
+.btn-qr-done {
+    background: rgba(31, 143, 106, 0.1) !important;
+    border: 1px solid rgba(31, 143, 106, 0.3) !important;
+    color: var(--neon-green-solid) !important;
+    cursor: not-allowed;
+    box-shadow: none !important;
+    transform: none !important;
+}
+
+/* 扫码按钮呼吸效果 (用于提示司机当前应扫的码) */
+.pulse-glow-blue {
+    animation: pulse-blue 1.5s infinite alternate cubic-bezier(0.4, 0, 0.6, 1);
+}
+
+.pulse-glow-orange {
+    animation: pulse-orange 1.5s infinite alternate cubic-bezier(0.4, 0, 0.6, 1);
+}
+
+@keyframes pulse-blue {
+    0% {
+        box-shadow: 0 4px 8px rgba(47, 111, 179, 0.3);
+    }
+    100% {
+        box-shadow: 0 4px 20px rgba(47, 111, 179, 0.7);
+        border-color: rgba(121, 169, 216, 0.6);
+    }
+}
+
+@keyframes pulse-orange {
+    0% {
+        box-shadow: 0 4px 8px rgba(197, 138, 31, 0.3);
+    }
+    100% {
+        box-shadow: 0 4px 20px rgba(197, 138, 31, 0.7);
+        border-color: rgba(197, 138, 31, 0.6);
+    }
+}
+
+/* ==========================================
+   通用居中 Modal 弹窗样式
+   ========================================== */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(4, 9, 16, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    z-index: 200;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+}
+
+.modal-overlay.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.modal-container {
+    background: #0f2237;
+    border: 1px solid rgba(142, 170, 201, 0.28);
+    border-radius: 12px;
+    width: 100%;
+    max-width: 440px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+    transform: scale(0.92) translateY(15px);
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.modal-overlay.active .modal-container {
+    transform: scale(1) translateY(0);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 18px 24px;
+    border-bottom: 1px solid rgba(142, 170, 201, 0.16);
+}
+
+.modal-title {
+    font-family: var(--font-outfit);
+    font-weight: 700;
+    font-size: 17px;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 18px;
+    cursor: pointer;
+    transition: color 0.2s ease;
+}
+
+.modal-close:hover {
+    color: #ffffff;
+}
+
+.modal-body {
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+
+.modal-footer {
+    padding: 16px 24px;
+    border-top: 1px solid rgba(142, 170, 201, 0.16);
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+}
+
+/* 二维码弹窗特有元素 */
+.qr-code-step-badge {
+    background: rgba(121, 169, 216, 0.12);
+    border: 1px solid rgba(121, 169, 216, 0.25);
+    color: var(--neon-cyan);
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    margin-bottom: 12px;
+}
+
+.qr-code-step-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: #ffffff;
+    margin-bottom: 8px;
+}
+
+.qr-canvas-wrapper canvas {
+    display: block;
+}
+
+/* Card edit QR button */
+.qr-edit-btn {
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.4);
+    cursor: pointer;
+    font-size: 14px;
+    padding: 6px;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+}
+
+.qr-edit-btn:hover {
+    color: var(--neon-cyan);
+    background: rgba(121, 169, 216, 0.1);
+}
+
+/* Upload preview box image fitting */
+#vehicleQrPreviewBox img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* Small QR upload indicators on cards */
+.qr-upload-status-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: var(--text-secondary);
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    padding-top: 8px;
+    margin-top: 2px;
+}
+.qr-upload-status-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.qr-upload-status-item.uploaded {
+    color: var(--neon-green-solid);
+}
+.qr-upload-status-item.missing {
+    color: #f87171;
+}
+
+/* 运单状态快捷过滤 Pills 样式 */
+.status-pills-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.status-pill {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(142, 170, 201, 0.16);
+    color: var(--text-secondary);
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    outline: none;
+}
+
+.status-pill:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(142, 170, 201, 0.3);
+    color: var(--text-primary);
+}
+
+.status-pill.active {
+    background: rgba(47, 111, 179, 0.18);
+    border-color: var(--neon-blue);
+    color: #ffffff;
+    font-weight: 600;
+    box-shadow: 0 4px 12px rgba(47, 111, 179, 0.15);
+}
+
+/* Status dots inside pills */
+.status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    display: inline-block;
+}
+.shipping-dot {
+    background: #4ade80;
+    box-shadow: 0 0 8px #4ade80;
+}
+
+/* Light Mode 样式适配 */
+[data-theme="light"] .status-pill {
+    background: rgba(0, 0, 0, 0.03);
+    border-color: rgba(47, 111, 179, 0.15);
+    color: var(--text-secondary);
+}
+[data-theme="light"] .status-pill:hover {
+    background: rgba(0, 0, 0, 0.06);
+    border-color: rgba(47, 111, 179, 0.3);
+    color: var(--text-primary);
+}
+[data-theme="light"] .status-pill.active {
+    background: rgba(47, 111, 179, 0.08);
+    border-color: var(--neon-blue);
+    color: var(--neon-blue);
+}
+
+/* 未上传二维码按钮样式（灰色低调提示） */
+.btn-qr-unuploaded {
+    background: rgba(255, 255, 255, 0.04) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    color: var(--text-secondary) !important;
+    cursor: pointer;
+    box-shadow: none !important;
+    animation: none !important;
+}
+
+.btn-qr-unuploaded:hover {
+    background: rgba(255, 255, 255, 0.08) !important;
+    border-color: rgba(255, 255, 255, 0.15) !important;
+    color: #ffffff !important;
+}
+
+/* Light Mode 未上传二维码样式适配 */
+[data-theme="light"] .btn-qr-unuploaded {
+    background: rgba(0, 0, 0, 0.04) !important;
+    border: 1px solid rgba(0, 0, 0, 0.08) !important;
+    color: var(--text-secondary) !important;
+}
+
+[data-theme="light"] .btn-qr-unuploaded:hover {
+    background: rgba(0, 0, 0, 0.08) !important;
+    border-color: rgba(0, 0, 0, 0.15) !important;
+    color: var(--text-primary) !important;
+}
+
+/* 二维码卡片启用/禁用滑动开关（Switch）样式 */
+.switch-toggle {
+    position: relative;
+    display: inline-block;
+    width: 32px;
+    height: 18px;
+    margin-right: 4px;
+}
+
+.switch-toggle input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.switch-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(142, 170, 201, 0.2);
+    transition: .3s;
+    border-radius: 18px;
+}
+
+.switch-slider:before {
+    position: absolute;
+    content: "";
+    height: 12px;
+    width: 12px;
+    left: 2px;
+    bottom: 2px;
+    background-color: #a9b8c8;
+    transition: .3s;
+    border-radius: 50%;
+}
+
+input:checked + .switch-slider {
+    background-color: rgba(31, 143, 106, 0.2);
+    border-color: rgba(31, 143, 106, 0.5);
+}
+
+input:checked + .switch-slider:before {
+    transform: translateX(14px);
+    background-color: var(--neon-green-solid);
+}
+
+[data-theme="light"] .switch-slider {
+    background-color: rgba(15, 23, 42, 0.08);
+    border-color: rgba(15, 23, 42, 0.15);
+}
+
+[data-theme="light"] .switch-slider:before {
+    background-color: #64748b;
+}
+
+[data-theme="light"] input:checked + .switch-slider {
+    background-color: rgba(5, 150, 105, 0.15);
+    border-color: rgba(5, 150, 105, 0.3);
+}
+
+[data-theme="light"] input:checked + .switch-slider:before {
+    background-color: var(--neon-green-solid);
+}
+
+/* 车辆已禁用状态卡片样式 */
+.qr-vehicle-card.disabled-card {
+    opacity: 0.55;
+    filter: grayscale(30%);
+    border-color: rgba(142, 170, 201, 0.12);
+    box-shadow: none !important;
+}
+
+.qr-vehicle-card.disabled-card .qr-plate {
+    background: rgba(142, 170, 201, 0.15) !important;
+    color: var(--text-secondary) !important;
+    border-color: rgba(142, 170, 201, 0.2) !important;
+}
+
+.btn-qr-disabled {
+    background: rgba(255, 255, 255, 0.03) !important;
+    border: 1px solid rgba(255, 255, 255, 0.05) !important;
+    color: rgba(255, 255, 255, 0.2) !important;
+    cursor: not-allowed !important;
+    box-shadow: none !important;
+    pointer-events: none !important;
+    animation: none !important;
+}
+
+[data-theme="light"] .btn-qr-disabled {
+    background: rgba(15, 23, 42, 0.03) !important;
+    border: 1px solid rgba(15, 23, 42, 0.05) !important;
+    color: rgba(15, 23, 42, 0.35) !important;
 }

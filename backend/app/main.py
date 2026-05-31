@@ -12,6 +12,7 @@ from datetime import datetime
 # 获取根路径与本地数据持久化路径
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_FILE = os.path.abspath(os.path.join(BASE_DIR, "data.json"))
+CONFIG_FILE = os.path.abspath(os.path.join(BASE_DIR, "config.json"))
 
 app = FastAPI(title="Plate Query System Proxy API")
 
@@ -46,6 +47,19 @@ class QueryRequest(BaseModel):
     authtoken: str
     id: str = "225642"
     worksitetype: str = "1"
+
+
+class WaybillQueryRequest(BaseModel):
+    authtoken: str
+    page: int = 1
+    limit: int = 50
+    id: str = ""
+    state: str = ""
+    starTime: str = ""
+    endTime: str = ""
+    code: str = ""
+    overloadRatio: str = ""
+    type: int = 1
 
 
 class LoginTokenRequest(BaseModel):
@@ -365,6 +379,13 @@ async def sync_data(payload: QueryRequest):
                     detail=f"写入本地数据文件失败: {e}"
                 )
             
+            # 保存接口配置到 config.json 以供计划任务使用
+            try:
+                with open(CONFIG_FILE, "w", encoding="utf-8") as f:
+                    json.dump(payload.model_dump(), f, ensure_ascii=False, indent=2)
+            except Exception as e:
+                print(f"Warning: Failed to save config to {CONFIG_FILE}: {e}")
+            
             return {
                 "success": True,
                 "last_updated": nowStr,
@@ -457,6 +478,130 @@ async def get_local_data():
 @app.get("/api/health")
 async def health_check():
     return {"status": "healthy", "service": "plate-query-proxy"}
+
+
+@app.get("/api/config")
+async def get_backend_config():
+    """
+    获取服务器端配置的 authtoken 等信息，供前端在没有本地缓存或需要同步时拉取。
+    """
+    if not os.path.exists(CONFIG_FILE):
+        return {
+            "success": True,
+            "authtoken": "",
+            "id": "225642",
+            "worksitetype": "1"
+        }
+    try:
+        with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+            config = json.load(f)
+        return {
+            "success": True,
+            "authtoken": config.get("authtoken", ""),
+            "id": config.get("id", "225642"),
+            "worksitetype": config.get("worksitetype", "1")
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"读取服务器配置失败: {e}"
+        )
+
+
+@app.post("/api/waybills")
+async def query_waybills(payload: WaybillQueryRequest):
+    """
+    运单查询代理接口：转发运单检索请求至目标系统
+    """
+    print(f"=== WAYBILL QUERY DIAGNOSTIC LOG ===")
+    print(f"Payload received: {payload.model_dump()}")
+    targetUrl = f"{REMOTE_BASE_URL}/constructionSite/record-waybill/pageList"
+    headers = _remote_headers(payload.authtoken.strip())
+    body = {
+        "page": payload.page,
+        "limit": payload.limit,
+        "id": payload.id.strip(),
+        "state": payload.state.strip(),
+        "starTime": payload.starTime.strip(),
+        "endTime": payload.endTime.strip(),
+        "code": payload.code.strip(),
+        "overloadRatio": payload.overloadRatio.strip(),
+        "type": payload.type
+    }
+    print(f"Forwarding body: {body}")
+    
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.post(targetUrl, headers=headers, json=body)
+            if response.status_code != 200:
+                raise HTTPException(
+                    status_code=response.status_code,
+                    detail=f"目标系统返回非200状态码: {response.status_code}"
+                )
+            try:
+                responseData = response.json()
+                return responseData
+            except Exception:
+                raise HTTPException(
+                    status_code=502,
+                    detail="目标系统返回的数据不是合法的 JSON 格式"
+                )
+    except httpx.RequestError as exc:
+        raise HTTPException(
+            status_code=504,
+            detail=f"请求目标系统超时或连接失败，异常信息: {exc}"
+        )
+
+
+QR_DATA_FILE = os.path.abspath(os.path.join(BASE_DIR, "qr_data.json"))
+
+class QrConfigPayload(BaseModel):
+    vehicles: List[Dict[str, Any]]
+    templates: Dict[str, str]
+
+@app.get("/api/qr-helper/config")
+async def get_qr_config():
+    if not os.path.exists(QR_DATA_FILE):
+        return {
+            "success": True,
+            "vehicles": [],
+            "templates": {
+                "worksite": "http://ztxn.capcloud.com.cn:8080/dist/index.html#/scan/worksite?plate={plate}",
+                "dump": "http://ztxn.capcloud.com.cn:8080/dist/index.html#/scan/dump?plate={plate}"
+            }
+        }
+    try:
+        with open(QR_DATA_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return {
+            "success": True,
+            "vehicles": data.get("vehicles", []),
+            "templates": data.get("templates", {})
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"读取二维码助手配置失败: {e}"
+        )
+
+@app.post("/api/qr-helper/config")
+async def save_qr_config(payload: QrConfigPayload):
+    try:
+        data_to_save = {
+            "vehicles": payload.vehicles,
+            "templates": payload.templates
+        }
+        with open(QR_DATA_FILE, "w", encoding="utf-8") as f:
+            json.dump(data_to_save, f, ensure_ascii=False, indent=2)
+        return {"success": True}
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"保存二维码助手配置失败: {e}"
+        )
+
+
+
 
 
 # Web 一站式全栈托管部署支持

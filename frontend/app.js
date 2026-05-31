@@ -61,6 +61,7 @@ const downloadTablePdfBtn = document.getElementById("downloadTablePdfBtn");
 // 初始化与事件绑定
 window.addEventListener("DOMContentLoaded", () => {
     loadConfig();
+    loadConfigFromServer(false);
     detectBackendStatus();
     fetchLocalData(); // 启动时加载本地已有的持久化数据
     setupEventListeners();
@@ -99,6 +100,38 @@ function loadConfig() {
     tokenInput.value = appConfig.authtoken || "";
     worksiteIdInput.value = appConfig.id || "225642";
     worksiteTypeInput.value = appConfig.worksitetype || "1";
+}
+
+async function loadConfigFromServer(force = false) {
+    try {
+        const response = await fetch(`${BACKEND_URL}/api/config`, { cache: "no-store" });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+        if (data.success && data.authtoken) {
+            const hasLocalToken = !!appConfig.authtoken;
+            if (force || !hasLocalToken || appConfig.authtoken !== data.authtoken) {
+                appConfig.authtoken = data.authtoken;
+                appConfig.id = data.id || appConfig.id || "225642";
+                appConfig.worksitetype = data.worksitetype || appConfig.worksitetype || "1";
+                
+                localStorage.setItem(CONFIG_KEY, JSON.stringify(appConfig));
+                
+                if (tokenInput) tokenInput.value = appConfig.authtoken;
+                if (worksiteIdInput) worksiteIdInput.value = appConfig.id;
+                if (worksiteTypeInput) worksiteTypeInput.value = appConfig.worksitetype;
+                
+                console.log("Successfully synchronized configuration with the server backend.");
+                if (force) {
+                    alert("🎉 已成功从服务端同步最新接口配置！");
+                }
+            }
+        }
+    } catch (err) {
+        console.error("Failed to load config from server:", err);
+        if (force) {
+            alert(`同步服务端配置失败: ${err.message}`);
+        }
+    }
 }
 
 // 探测后端服务状态
@@ -319,6 +352,11 @@ function setupEventListeners() {
         // 尝试重测后端状态
         detectBackendStatus();
     });
+
+    const syncConfigFromServerBtn = document.getElementById("syncConfigFromServerBtn");
+    if (syncConfigFromServerBtn) {
+        syncConfigFromServerBtn.addEventListener("click", () => loadConfigFromServer(true));
+    }
 
     // 一键同步最新数据到本地 JSON
     syncDataBtn.addEventListener("click", syncDataFromServer);
