@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>智能车牌查询与准入认证系统</title>
+    <title>智能车牌查询与备案系统</title>
     <!-- Google 字体 -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <!-- FontAwesome 图标 -->
@@ -30,35 +30,19 @@
                 <button class="btn btn-secondary" id="themeToggleBtn" title="切换白天/夜间模式">
                     <i class="fa-solid fa-sun" id="themeToggleIcon"></i> <span id="themeToggleText">白天模式</span>
                 </button>
-                <button class="btn btn-secondary" id="openConfigBtn">
-                    <i class="fa-solid fa-sliders"></i> 接口配置
-                </button>
             </div>
         </header>
 
         <!-- 主体布局 -->
         <main class="app-body">
-            <!-- 导航 Tab 切换器 -->
-            <div class="tab-nav">
-                <button class="tab-btn active" id="tabQrBtn">
-                    <i class="fa-solid fa-qrcode"></i> 扫码助手
-                </button>
-                <button class="tab-btn" id="tabWaybillBtn">
-                    <i class="fa-solid fa-truck-moving"></i> 运单查询
-                </button>
-                <button class="tab-btn" id="tabAccessBtn">
-                    <i class="fa-solid fa-id-card"></i> 准入校验
-                </button>
-            </div>
-
-            <!-- 车辆准入校验页面 -->
-            <div id="accessPage" style="display: none;">
+            <!-- 车辆备案查询页面 -->
+            <div id="accessPage">
                 <!-- 查询主卡片 -->
                 <section class="glass-panel search-panel">
                     <div class="panel-header">
                         <div class="panel-header-left">
-                            <h1 class="panel-title">车辆准入智能校验终端</h1>
-                            <p class="panel-subtitle">日常查询仅比对本地数据，离线零延迟响应</p>
+                            <h1 class="panel-title">车辆备案智能查询终端</h1>
+                            <p class="panel-subtitle">支持实时检索本地已备案车辆，零延迟极速响应</p>
                         </div>
                         <div class="sync-control">
                             <span class="sync-time" id="syncTimeDisplay">上次同步: 未同步数据</span>
@@ -68,21 +52,15 @@
                         </div>
                     </div>
 
-                    <div class="search-box-container">
+                    <div class="search-box-container" style="position: relative;">
                         <div class="search-box">
                             <i class="fa-solid fa-magnifying-glass search-icon"></i>
-                            <input type="text" id="plateInput" placeholder="输入车牌号（例如：粤B88888）" autocomplete="off" maxlength="8">
+                            <input type="text" id="plateInput" placeholder="输入车牌号（例如：京AFE851）" autocomplete="off" maxlength="8">
                             <button class="btn btn-primary" id="searchBtn">
                                 <i class="fa-solid fa-arrow-right"></i>
                             </button>
                         </div>
-                    </div>
-
-                    <!-- 快速检索提示 -->
-                    <div class="quick-hints">
-                        <span class="hint-label">快捷示例:</span>
-                        <span class="hint-tag" onclick="fillPlate('京A88888')">京A88888</span>
-                        <span class="hint-tag" onclick="fillPlate('粤B12345D')">粤B12345D (新能源)</span>
+                        <div class="search-suggestions" id="searchSuggestions" style="display: none;"></div>
                     </div>
                 </section>
 
@@ -104,14 +82,14 @@
                         <div class="permit-card-wrapper" id="permitCard">
                             <div class="permit-header">
                                 <div class="permit-badge">
-                                    <i class="fa-solid fa-circle-check"></i> 准入通过 / APPROVED
+                                    <i class="fa-solid fa-circle-check"></i> 备案通过 / VERIFIED
                                 </div>
                                 <span class="permit-serial" id="permitSerial">NO. 8392019</span>
                             </div>
                             
                             <div class="permit-body">
                                 <div class="permit-hero">
-                                    <div class="plate-badge" id="successPlate">粤B88888</div>
+                                    <div class="plate-badge" id="successPlate">京AFE851</div>
                                     <div class="permit-desc">该车辆已在当前工地系统中完成合法备案，允许正常通行</div>
                                 </div>
                                 
@@ -121,11 +99,11 @@
                                         <span class="item-value" id="successWorksite">总台超高清示范园工程</span>
                                     </div>
                                     <div class="grid-item">
-                                        <span class="item-label"><i class="fa-solid fa-shield-halved"></i> 安全校验评级</span>
+                                        <span class="item-label"><i class="fa-solid fa-shield-halved"></i> 安全备案评级</span>
                                         <span class="item-value text-green"><i class="fa-solid fa-star"></i> 绿码安全级别</span>
                                     </div>
                                     <div class="grid-item">
-                                        <span class="item-label"><i class="fa-solid fa-calendar-check"></i> 校验时刻</span>
+                                        <span class="item-label"><i class="fa-solid fa-calendar-check"></i> 查询时刻</span>
                                         <span class="item-value" id="successTime">2026-05-27 16:39:05</span>
                                     </div>
                                     <div class="grid-item">
@@ -146,7 +124,7 @@
                         <!-- PDF 下载动作区（已根据用户要求隐藏，专注于备案总表 PDF 导出） -->
                         <div class="action-bar" style="display: none;">
                             <button class="btn btn-success btn-large" id="downloadPdfBtn">
-                                <i class="fa-solid fa-file-pdf"></i> 保存为 PDF 准入凭证
+                                <i class="fa-solid fa-file-pdf"></i> 保存为 PDF 备案凭证
                             </button>
                         </div>
                     </div>
@@ -248,307 +226,13 @@
                     </div>
                 </section>
             </div>
-
-            <!-- 实时运单查询及监控页面 -->
-            <div id="waybillPage" style="display: none;">
-                <!-- 筛选卡片 -->
-                <section class="glass-panel waybill-filter-panel" style="margin-bottom: 24px; padding: 18px 24px;">
-                    <div class="panel-header" style="margin-bottom: 12px; border-bottom: none; padding-bottom: 0; display: flex; justify-content: space-between; align-items: center; flex-wrap: nowrap;">
-                        <div class="table-header-left">
-                            <h1 class="panel-title" style="font-size: 18px;">实时运单监控查询</h1>
-                            <p class="panel-subtitle">默认查询今日，点击下方状态栏即刻进行状态筛选</p>
-                        </div>
-                        <button class="btn btn-secondary btn-small" id="toggleAdvancedFiltersBtn" style="padding: 6px 12px; height: 32px; font-size: 12px; display: inline-flex; align-items: center; gap: 6px;">
-                            <i class="fa-solid fa-sliders"></i> 高级筛选
-                        </button>
-                    </div>
-
-                    <!-- 状态快捷筛选 Pills -->
-                    <div class="status-pills-container" style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px;">
-                        <input type="hidden" id="waybillFilterState" value="">
-                        <button class="status-pill active" data-state="">全选</button>
-                        <button class="status-pill" data-state="运输中">
-                            <span class="status-dot shipping-dot"></span> 运输中
-                        </button>
-                        <button class="status-pill" data-state="已完成">已完成</button>
-                        <button class="status-pill" data-state="异常">异常</button>
-                        <button class="status-pill" data-state="违规运单">违规运单</button>
-                    </div>
-
-                    <!-- 可折叠的高级筛选面板 -->
-                    <div class="advanced-filters-panel" id="advancedFiltersPanel" style="display: none; margin-top: 16px; padding-top: 16px; border-top: 1px dashed rgba(142, 170, 201, 0.15);">
-                        <div class="filter-grid" style="margin-bottom: 16px;">
-                            <div class="form-group">
-                                <label class="form-label" for="waybillFilterWorksiteId">运单 ID (id)</label>
-                                <input type="text" id="waybillFilterWorksiteId" class="form-input" placeholder="请输入特定运单 ID">
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label" for="waybillFilterCode">车牌号 / 运单编号</label>
-                                <input type="text" id="waybillFilterCode" class="form-input" placeholder="输入车牌号或运单编号">
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label" for="waybillFilterStarTime">开始日期 (starTime)</label>
-                                <input type="date" id="waybillFilterStarTime" class="form-input">
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label" for="waybillFilterEndTime">结束日期 (endTime)</label>
-                                <input type="date" id="waybillFilterEndTime" class="form-input">
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label" for="waybillFilterLimit">每页条数 (limit)</label>
-                                <select id="waybillFilterLimit" class="form-input select-style">
-                                    <option value="10">10 条</option>
-                                    <option value="20" selected>20 条</option>
-                                    <option value="50">50 条</option>
-                                    <option value="100">100 条</option>
-                                    <option value="500">500 条</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <div class="filter-actions" style="display: flex; gap: 12px; justify-content: flex-start;">
-                            <button class="btn btn-primary" id="waybillQueryBtn">
-                                <i class="fa-solid fa-magnifying-glass"></i> 查询
-                            </button>
-                            <button class="btn btn-secondary" id="waybillResetBtn">
-                                <i class="fa-solid fa-arrows-rotate"></i> 重置
-                            </button>
-                        </div>
-                    </div>
-                </section>
-
-                <!-- 运单列表面板 -->
-                <section class="glass-panel waybills-table-panel" id="waybillsTablePanelSection" style="display: none;">
-                    <div class="table-panel-header">
-                        <div class="table-header-left">
-                            <h2 class="table-panel-title">
-                                <i class="fa-solid fa-truck-moving logo-icon-cyan"></i> 实时运单监控列表
-                            </h2>
-                            <p class="table-panel-subtitle" id="waybillStatsDisplay">共检索到 0 条运单记录</p>
-                        </div>
-                        <div class="waybill-summary-stats" id="waybillSummaryStats" style="display: none;">
-                            <span class="stat-badge"><i class="fa-solid fa-weight-hanging"></i> 总吨数 (count): <strong id="waybillTotalTonnage">0.00</strong> 吨</span>
-                        </div>
-                    </div>
-
-                    <div class="table-responsive">
-                        <table class="modern-table">
-                            <thead>
-                                <tr>
-                                    <th style="width: 100px; text-align: center;">状态</th>
-                                    <th style="width: 110px;">车牌号</th>
-                                    <th>工地名称</th>
-                                    <th>消纳地点</th>
-                                    <th>运输企业</th>
-                                    <th style="width: 95px;">垃圾类型</th>
-                                    <th style="width: 95px; text-align: center;">运量(吨)</th>
-                                    <th style="width: 155px; text-align: center;">出发时间</th>
-                                    <th style="width: 155px; text-align: center;">到达时间</th>
-                                </tr>
-                            </thead>
-                            <tbody id="waybillsTableBody">
-                                <tr>
-                                    <td colspan="9" class="table-empty">
-                                        <i class="fa-solid fa-folder-open empty-icon"></i>
-                                        <p>无检索运单数据，请输入查询条件并点击【查询】！</p>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </section>
-            </div>
-
-            <!-- 简易扫码助手页面 -->
-            <div id="qrPage">
-                <!-- 统计 & 全局控制面板 -->
-                <section class="glass-panel qr-control-panel" style="margin-bottom: 24px;">
-                    <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; margin-bottom: 0; border-bottom: none; padding-bottom: 0;">
-                        <div class="table-header-left">
-                            <h2 class="panel-title">
-                                <i class="fa-solid fa-qrcode logo-icon-cyan"></i> 固定车辆扫码助手
-                            </h2>
-                            <p class="panel-subtitle">循环扫码流程：扫码工地（工地查看按钮关闭），等扫码土点（土点查看按钮关闭，打开工地查看按钮）</p>
-                        </div>
-                        <div class="sync-control">
-                            <button class="btn btn-secondary btn-small" id="batchAddBtn">
-                                <i class="fa-solid fa-plus"></i> 批量添加车辆
-                            </button>
-                            <button class="btn btn-secondary btn-small" id="resetAllVehiclesBtn" style="background: rgba(180, 35, 24, 0.15); border: 1px solid rgba(180, 35, 24, 0.3); color: #f87171;">
-                                <i class="fa-solid fa-rotate-left"></i> 一键重置状态
-                            </button>
-                        </div>
-                    </div>
-                </section>
-
-                <!-- 车辆扫码网格 -->
-                <section id="qrVehiclesGrid" class="qr-vehicles-grid">
-                    <!-- 由 JS 动态渲染 -->
-                </section>
-            </div>
         </main>
     </div>
 
-    <!-- 接口配置滑动抽屉 -->
-    <div class="drawer-overlay" id="drawerOverlay"></div>
-    <div class="config-drawer" id="configDrawer">
-        <div class="drawer-header">
-            <h3 class="drawer-title"><i class="fa-solid fa-sliders"></i> 接口参数配置</h3>
-            <button class="close-drawer-btn" id="closeConfigBtn"><i class="fa-solid fa-xmark"></i></button>
-        </div>
-        <div class="drawer-body">
-            <div class="login-token-panel">
-                <div class="login-token-title">
-                    <i class="fa-solid fa-key"></i>
-                    <span>账号登录获取 Token</span>
-                </div>
-                <div class="form-group">
-                    <label class="form-label" for="loginUsernameInput">账号</label>
-                    <input type="text" id="loginUsernameInput" class="form-input" autocomplete="username" placeholder="输入目标系统账号">
-                </div>
-                <div class="form-group">
-                    <label class="form-label" for="loginPasswordInput">密码</label>
-                    <input type="password" id="loginPasswordInput" class="form-input" autocomplete="current-password" placeholder="输入目标系统密码">
-                </div>
-                <div class="captcha-row">
-                    <div class="captcha-image-box">
-                        <img id="captchaImage" alt="验证码">
-                    </div>
-                    <button class="btn btn-secondary captcha-refresh-btn" id="refreshCaptchaBtn" type="button" title="刷新验证码">
-                        <i class="fa-solid fa-arrows-rotate"></i>
-                    </button>
-                </div>
-                <div class="form-group">
-                    <label class="form-label" for="captchaCodeInput">验证码</label>
-                    <input type="text" id="captchaCodeInput" class="form-input" autocomplete="off" placeholder="输入图片验证码">
-                </div>
-                <button class="btn btn-success btn-full" id="autoLoginBtn" type="button">
-                    <i class="fa-solid fa-right-to-bracket"></i> 登录并写入 Token
-                </button>
-                <span class="form-help" id="loginStatus">账号和密码仅用于本次登录请求，不会保存到本地配置。</span>
-            </div>
 
-            <div class="form-group">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                    <label class="form-label" for="tokenInput" style="margin-bottom: 0;">授权密钥 (authtoken)</label>
-                    <a href="javascript:void(0)" id="syncConfigFromServerBtn" style="color: var(--neon-cyan); text-decoration: none; font-size: 12px; display: inline-flex; align-items: center; gap: 4px;">
-                        <i class="fa-solid fa-cloud-arrow-down"></i> 从服务端同步配置
-                    </a>
-                </div>
-                <textarea id="tokenInput" class="form-input text-monospace" rows="12" placeholder="贴入 JWT 格式的 authtoken 密钥..."></textarea>
-                <span class="form-help">每次请求目标接口时，后端代理会自动携带此密钥进行安全认证。</span>
-            </div>
-
-            <div class="form-row">
-                <div class="form-group col-6">
-                    <label class="form-label" for="worksiteIdInput">工地 ID (id)</label>
-                    <input type="text" id="worksiteIdInput" class="form-input" value="225642">
-                </div>
-                <div class="form-group col-6">
-                    <label class="form-label" for="worksiteTypeInput">类型 (worksitetype)</label>
-                    <input type="text" id="worksiteTypeInput" class="form-input" value="1">
-                </div>
-            </div>
-
-            <button class="btn btn-primary btn-full" id="saveConfigBtn">
-                <i class="fa-solid fa-floppy-disk"></i> 保存并应用配置
-            </button>
-        </div>
-    </div>
-
-    <!-- 扫码二维码展示弹窗 -->
-    <div class="modal-overlay" id="qrCodeModal">
-        <div class="modal-container">
-            <div class="modal-header">
-                <h3 class="modal-title" id="qrCodeModalTitle">车辆扫码校验</h3>
-                <button class="modal-close" id="closeQrCodeModalBtn"><i class="fa-solid fa-xmark"></i></button>
-            </div>
-            <div class="modal-body">
-                <div class="qr-code-step-badge" id="qrCodeStepBadge">步骤 1/2</div>
-                <h4 class="qr-code-step-title" id="qrCodeStepTitle">请司机使用手机扫描下方二维码</h4>
-                <div class="qr-canvas-wrapper" style="background: rgba(255, 255, 255, 0.03); padding: 16px; border-radius: 8px; margin: 16px 0; display: flex; align-items: center; justify-content: center; width: 232px; height: 232px; border: 1px solid rgba(142,170,201,0.2);">
-                    <img id="qrCodeImage" style="max-width: 200px; max-height: 200px; object-fit: contain; display: none;" alt="二维码">
-                    <div id="qrCodeImageFallback" style="color: var(--text-secondary); font-size: 13px; text-align: center;">
-                        <i class="fa-solid fa-circle-info" style="font-size: 24px; color: var(--neon-orange); margin-bottom: 8px; display: block;"></i>
-                        尚未上传该二维码<br>请先在卡片上点击编辑上传
-                    </div>
-                </div>
-                <div class="qr-code-plate" id="qrCodePlateDisplay" style="font-family: var(--font-outfit); font-weight: 800; font-size: 20px; color: #ffffff; background: rgba(255,255,255,0.06); padding: 6px 16px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1); margin-bottom: 8px;">粤B88888</div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" id="cancelQrCodeModalBtn">取消</button>
-                <button class="btn btn-success" id="confirmQrScannedBtn">
-                    <i class="fa-solid fa-circle-check"></i> 确认司机已扫码
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- 批量添加车辆弹窗 -->
-    <div class="modal-overlay" id="batchAddModal">
-        <div class="modal-container">
-            <div class="modal-header">
-                <h3 class="modal-title"><i class="fa-solid fa-plus-square"></i> 批量添加车辆</h3>
-                <button class="modal-close" id="closeBatchAddModalBtn"><i class="fa-solid fa-xmark"></i></button>
-            </div>
-            <div class="modal-body" style="align-items: stretch; text-align: left;">
-                <div class="form-group" style="margin-bottom: 0;">
-                    <label class="form-label" for="batchAddTextArea">车牌号列表（每行一个，或用逗号/空格分隔）</label>
-                    <textarea id="batchAddTextArea" class="form-input" rows="8" placeholder="例如：&#10;粤B88888&#10;粤B99999D&#10;京A66666"></textarea>
-                    <span class="form-help" style="margin-top: 8px;">系统会自动清洗格式并过滤重复车牌，支持新能源8位及传统7位车牌。</span>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" id="cancelBatchAddModalBtn">取消</button>
-                <button class="btn btn-primary" id="confirmBatchAddBtn">确认添加</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- 编辑车辆二维码弹窗 -->
-    <div class="modal-overlay" id="editQrModal">
-        <div class="modal-container" style="max-width: 480px;">
-            <div class="modal-header">
-                <h3 class="modal-title" id="editQrModalTitle"><i class="fa-solid fa-pen-to-square"></i> 二维码配置管理</h3>
-                <button class="modal-close" id="closeEditQrModalBtn"><i class="fa-solid fa-xmark"></i></button>
-            </div>
-            <div class="modal-body" style="align-items: stretch; text-align: left; gap: 20px;">
-                <div style="text-align: center; margin-bottom: 5px;">
-                    <span class="qr-plate plate-blue" id="editQrPlateDisplay" style="font-size: 20px;">粤B88888</span>
-                </div>
-                
-                <!-- 二维码上传 -->
-                <div class="form-group" style="margin-bottom: 0;">
-                    <label class="form-label" style="display: flex; justify-content: space-between; align-items: center;">
-                        <span>车辆通行二维码</span>
-                        <span id="vehicleUploadStatus" style="font-size: 11px; color: var(--text-secondary);">未上传</span>
-                    </label>
-                    <div style="display: flex; gap: 12px; align-items: center; background: rgba(9, 20, 34, 0.4); padding: 12px; border-radius: 8px; border: 1px dashed rgba(142,170,201,0.2);">
-                        <div id="vehicleQrPreviewBox" style="width: 80px; height: 80px; border-radius: 6px; background: rgba(0,0,0,0.2); display: flex; align-items: center; justify-content: center; overflow: hidden; border: 1px solid rgba(255,255,255,0.05);">
-                            <i class="fa-solid fa-image" style="font-size: 24px; color: rgba(255,255,255,0.15);"></i>
-                        </div>
-                        <div style="flex: 1; display: flex; flex-direction: column; gap: 8px;">
-                            <label class="btn btn-secondary btn-small" style="display: inline-flex; align-self: flex-start; cursor: pointer;">
-                                <i class="fa-solid fa-upload"></i> 选择上传图片
-                                <input type="file" id="vehicleQrFileInput" accept="image/*" style="display: none;">
-                            </label>
-                            <button class="btn btn-secondary btn-small" id="deleteVehicleQrBtn" style="display: inline-flex; align-self: flex-start; background: rgba(180, 35, 24, 0.15); border: 1px solid rgba(180, 35, 24, 0.3); color: #f87171; display: none;">
-                                <i class="fa-solid fa-trash-can"></i> 删除已上传
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" id="cancelEditQrModalBtn">取消</button>
-                <button class="btn btn-primary" id="saveEditQrBtn">保存修改</button>
-            </div>
-        </div>
-    </div>
 
     <!-- 外部 html2pdf.js CDN 资源 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode/1.5.1/qrcode.min.js"></script>
     <script src="app-runtime.js"></script>
 </body>
 </html>

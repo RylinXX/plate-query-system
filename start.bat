@@ -13,14 +13,14 @@ cd /d "%~dp0"
 python --version >nul 2>&1
 if %errorlevel% neq 0 (
     echo [错误] 未在系统环境变量中检测到 Python！
-    echo 请先安装 Python (推荐 3.10 及以上版本) 并勾选 "Add Python to PATH"。
+    echo 请先安装 Python（推荐 3.10 及以上版本）并勾选 "Add Python to PATH"。
     pause
     exit /b
 )
 
 :: 2. 检测并初始化虚拟环境
 if not exist "backend\venv" (
-    echo [配置] 正在首次初始化 Python 虚拟环境 (venv)，请稍候...
+    echo [配置] 正在首次初始化 Python 虚拟环境 [venv]，请稍候...
     python -m venv backend\venv
     if %errorlevel% neq 0 (
         echo [错误] 虚拟环境创建失败！

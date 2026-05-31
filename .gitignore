@@ -16,4 +16,7 @@ backend/data.json
 backend/config.json
 backend/sync.log
 backend/debug_response.json
+backend/ocr_response.log
+backend/pending_filing.json
+
 

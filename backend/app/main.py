@@ -13,6 +13,7 @@ from datetime import datetime
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_FILE = os.path.abspath(os.path.join(BASE_DIR, "data.json"))
 CONFIG_FILE = os.path.abspath(os.path.join(BASE_DIR, "config.json"))
+DEFAULT_VOLC_KEY = "ark-955e822c-cde0-427a-8686-85ca4ada387a-c191f"
 
 app = FastAPI(title="Plate Query System Proxy API")
 
@@ -381,8 +382,16 @@ async def sync_data(payload: QueryRequest):
             
             # 保存接口配置到 config.json 以供计划任务使用
             try:
+                config_data = {}
+                if os.path.exists(CONFIG_FILE):
+                    try:
+                        with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+                            config_data = json.load(f)
+                    except Exception:
+                        pass
+                config_data.update(payload.model_dump())
                 with open(CONFIG_FILE, "w", encoding="utf-8") as f:
-                    json.dump(payload.model_dump(), f, ensure_ascii=False, indent=2)
+                    json.dump(config_data, f, ensure_ascii=False, indent=2)
             except Exception as e:
                 print(f"Warning: Failed to save config to {CONFIG_FILE}: {e}")
             
@@ -599,6 +608,592 @@ async def save_qr_config(payload: QrConfigPayload):
             status_code=500,
             detail=f"保存二维码助手配置失败: {e}"
         )
+
+
+class AdminConfigPayload(BaseModel):
+    volc_ak: str
+    volc_sk: str
+
+class SystemConfigPayload(BaseModel):
+    authtoken: str
+    id: str
+    worksitetype: str
+
+class FileVehiclePayload(BaseModel):
+    plate: str
+    company: str
+    original_plate: Optional[str] = None
+
+class DeletePendingPayload(BaseModel):
+    plate: str
+
+class UpdatePendingPayload(BaseModel):
+    original_plate: str
+    plate: str
+    company: str
+
+class UnfileVehiclePayload(BaseModel):
+    plate: str
+    company: str
+
+PENDING_FILE = os.path.abspath(os.path.join(BASE_DIR, "pending_filing.json"))
+
+def load_pending_vehicles():
+    if not os.path.exists(PENDING_FILE):
+        return []
+    try:
+        with open(PENDING_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return data.get("pending_vehicles", [])
+    except Exception:
+        return []
+
+def save_pending_vehicles(vehicles):
+    try:
+        with open(PENDING_FILE, "w", encoding="utf-8") as f:
+            json.dump({"pending_vehicles": vehicles}, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"Error saving pending vehicles: {e}")
+
+def extract_ocr_info(ocr_response_data):
+    text_lines = []
+    result = ocr_response_data.get("Result", {})
+    if "ocr_details" in result:
+        for detail in result["ocr_details"]:
+            if "text" in detail:
+                text_lines.append(detail["text"].strip())
+    elif "texts" in result:
+        text_lines = [t.strip() for t in result["texts"] if isinstance(t, str)]
+    elif isinstance(result, list):
+        for item in result:
+            if isinstance(item, dict) and "text" in item:
+                text_lines.append(item["text"].strip())
+                
+    if not text_lines:
+        def find_text_keys(obj):
+            lines = []
+            if isinstance(obj, dict):
+                for k, v in obj.items():
+                    if k == "text" and isinstance(v, str):
+                        lines.append(v.strip())
+                    else:
+                        lines.extend(find_text_keys(v))
+            elif isinstance(obj, list):
+                for item in obj:
+                    lines.extend(find_text_keys(item))
+            return lines
+        text_lines = find_text_keys(ocr_response_data)
+
+    # Match standard plates and new energy plates
+    plate_pattern = re.compile(r'[京津沪渝冀豫云辽黑湘皖鲁新苏浙赣鄂桂甘晋蒙陕吉闽贵粤青藏川宁琼][A-Z][A-Z0-9]{5,6}')
+    
+    plate = None
+    company = None
+    
+    for line in text_lines:
+        cleaned = line.replace(" ", "").replace("-", "").replace(":", "").replace("：", "")
+        match = plate_pattern.search(cleaned)
+        if match and not plate:
+            plate = match.group(0)
+            
+        if ("公司" in cleaned or "集团" in cleaned or "运输队" in cleaned or "运输部" in cleaned) and not company:
+            if cleaned not in ("公司名称", "运输单位", "运输公司", "建设单位", "消纳单位"):
+                company = cleaned
+                
+    return plate, company
+
+@app.get("/admin")
+async def get_admin_page():
+    from fastapi.responses import FileResponse
+    admin_path = os.path.join(FRONTEND_DIR, "admin.html")
+    if os.path.exists(admin_path):
+        return FileResponse(admin_path)
+    raise HTTPException(status_code=404, detail="Admin page not found")
+
+@app.get("/api/admin/config")
+async def get_admin_config():
+    if not os.path.exists(CONFIG_FILE):
+        return {"success": True, "volc_ak": DEFAULT_VOLC_KEY, "volc_sk": DEFAULT_VOLC_KEY}
+    try:
+        with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+            config = json.load(f)
+        return {
+            "success": True,
+            "volc_ak": config.get("volc_ak", "") or DEFAULT_VOLC_KEY,
+            "volc_sk": config.get("volc_sk", "") or DEFAULT_VOLC_KEY
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"读取配置失败: {e}")
+
+@app.post("/api/admin/config")
+async def save_admin_config(payload: AdminConfigPayload):
+    try:
+        config = {}
+        if os.path.exists(CONFIG_FILE):
+            with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+                config = json.load(f)
+        config["volc_ak"] = payload.volc_ak.strip()
+        config["volc_sk"] = payload.volc_sk.strip()
+        with open(CONFIG_FILE, "w", encoding="utf-8") as f:
+            json.dump(config, f, ensure_ascii=False, indent=2)
+        return {"success": True}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"保存配置失败: {e}")
+
+@app.post("/api/admin/system-config")
+async def save_system_config(payload: SystemConfigPayload):
+    try:
+        config = {}
+        if os.path.exists(CONFIG_FILE):
+            with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+                config = json.load(f)
+        config["authtoken"] = payload.authtoken.strip()
+        config["id"] = payload.id.strip()
+        config["worksitetype"] = payload.worksitetype.strip()
+        with open(CONFIG_FILE, "w", encoding="utf-8") as f:
+            json.dump(config, f, ensure_ascii=False, indent=2)
+        return {"success": True}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"保存系统配置失败: {e}")
+
+from fastapi import UploadFile, File
+
+@app.post("/api/admin/ocr-waybill")
+async def ocr_waybill(files: List[UploadFile] = File(...)):
+    import asyncio
+    volc_ak = DEFAULT_VOLC_KEY
+    volc_sk = DEFAULT_VOLC_KEY
+    
+    if os.path.exists(CONFIG_FILE):
+        try:
+            with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+                config = json.load(f)
+            volc_ak = config.get("volc_ak", "").strip() or DEFAULT_VOLC_KEY
+            volc_sk = config.get("volc_sk", "").strip() or DEFAULT_VOLC_KEY
+        except Exception:
+            pass
+    
+    if not volc_ak or not volc_sk:
+        raise HTTPException(status_code=400, detail="火山引擎 Access Key (AK) 或 Secret Key (SK) 不能为空！")
+    
+    is_ark = volc_ak.startswith("ark-") or volc_sk.startswith("ark-")
+    ark_api_key = volc_ak if volc_ak.startswith("ark-") else volc_sk
+    
+    visual_service = None
+    if not is_ark:
+        from volcengine.visual.VisualService import VisualService
+        visual_service = VisualService()
+        visual_service.set_ak(volc_ak)
+        visual_service.set_sk(volc_sk)
+        
+    import base64
+    
+    filed_vehicles = []
+    if os.path.exists(DATA_FILE):
+        try:
+            with open(DATA_FILE, "r", encoding="utf-8") as f:
+                filed_vehicles = json.load(f).get("vehicles", [])
+        except Exception:
+            pass
+            
+    pending_list = load_pending_vehicles()
+    
+    async def process_single_file(file):
+        try:
+            contents = await file.read()
+            base64_data = base64.b64encode(contents).decode('utf-8')
+            
+            plate = None
+            company = None
+            
+            if is_ark:
+                ext = file.filename.split(".")[-1].lower()
+                mime_type = "image/png"
+                if ext in ("jpg", "jpeg"):
+                    mime_type = "image/jpeg"
+                elif ext == "webp":
+                    mime_type = "image/webp"
+                
+                base64_data_url = f"data:{mime_type};base64,{base64_data}"
+                headers = {
+                    "Authorization": f"Bearer {ark_api_key}",
+                    "Content-Type": "application/json"
+                }
+                payload = {
+                    "model": "doubao-seed-2-0-pro-260215",
+                    "input": [
+                        {
+                            "role": "user",
+                            "content": [
+                                {
+                                    "type": "input_image",
+                                    "image_url": base64_data_url
+                                },
+                                {
+                                    "type": "input_text",
+                                    "text": "提取图片中的文字信息，识别并提取车牌号和运输企业名称。必须只以JSON对象形式返回，无需包含任何解释或markdown标记。格式例如：{\"plate\": \"车牌号\", \"company\": \"运输公司\"}。如果不存在，填空字符串。"
+                                }
+                            ]
+                        }
+                    ]
+                }
+                
+                async with httpx.AsyncClient(timeout=30.0) as client:
+                    r = await client.post("https://ark.cn-beijing.volces.com/api/v3/responses", headers=headers, json=payload)
+                    if r.status_code != 200:
+                        try:
+                            err_detail = r.json().get("error", {}).get("message", "未知错误")
+                        except Exception:
+                            err_detail = r.text
+                        return {
+                            "filename": file.filename,
+                            "success": False,
+                            "msg": f"方舟 API 报错: {err_detail}"
+                        }
+                    
+                    data = r.json()
+                    text = ""
+                    for out in data.get("output", []):
+                        if out.get("type") == "message" and out.get("role") == "assistant":
+                            for item in out.get("content", []):
+                                if item.get("type") == "output_text":
+                                    text = item.get("text", "")
+                                    
+                    # Log raw text response for debugging
+                    try:
+                        log_file = os.path.abspath(os.path.join(BASE_DIR, "ocr_response.log"))
+                        with open(log_file, "a", encoding="utf-8") as lf:
+                            lf.write(f"=== {datetime.now()} File: {file.filename} ===\n")
+                            lf.write(text + "\n\n")
+                    except Exception:
+                        pass
+
+                    # Parse extracted JSON using robust regex search
+                    try:
+                        json_match = re.search(r'\{.*\}', text, re.DOTALL)
+                        if json_match:
+                            cleaned_text = json_match.group(0)
+                            obj = json.loads(cleaned_text)
+                            plate = obj.get("plate", "").strip().upper()
+                            company = obj.get("company", "").strip()
+                    except Exception:
+                        pass
+                    
+                    # Regex fallback
+                    if not plate:
+                        text_upper = text.upper()
+                        plate_pattern = re.compile(r'[京津沪渝冀豫云辽黑湘皖鲁新苏浙赣鄂桂甘晋蒙陕吉闽贵粤青藏川宁琼][A-Z][A-Z0-9]{5,6}')
+                        match = plate_pattern.search(text_upper)
+                        if match:
+                            plate = match.group(0)
+                    if not company:
+                        negations = ("没有", "未找到", "找不到", "无法", "未提及", "不存在", "示例", "例如")
+                        for line in text.splitlines():
+                            cleaned = line.replace(" ", "").replace("-", "").replace(":", "").replace("：", "").replace('"', '').replace("'", "")
+                            if ("公司" in cleaned or "集团" in cleaned or "运输队" in cleaned or "运输部" in cleaned) and len(cleaned) > 2:
+                                if not any(neg in cleaned for neg in negations):
+                                    for key in ("company", "name", "enterprise", "运输公司", "公司名称", "运输单位", "建设单位", "消纳单位"):
+                                        if cleaned.lower().startswith(key.lower()):
+                                            cleaned = cleaned[len(key):].lstrip('",:： ')
+                                    cleaned = cleaned.strip('",:： {}[]')
+                                    if cleaned and 2 < len(cleaned) < 30:
+                                        company = cleaned
+                                        break
+            else:
+                form = {"image_base64": base64_data}
+                resp = await asyncio.to_thread(visual_service.ocr_normal, form)
+                
+                # Check for error in response
+                if isinstance(resp, dict) and "ResponseMetadata" in resp:
+                    metadata = resp["ResponseMetadata"]
+                    if "Error" in metadata:
+                        error_info = metadata["Error"]
+                        err_msg = error_info.get("Message", "未知接口错误")
+                        return {
+                            "filename": file.filename,
+                            "success": False,
+                            "msg": f"接口报错: {err_msg}"
+                        }
+                        
+                plate, company = extract_ocr_info(resp)
+                
+            if not plate:
+                return {
+                    "filename": file.filename,
+                    "success": False,
+                    "msg": "未识别到车牌号"
+                }
+                
+            plate = plate.upper()
+            company = company or "未知企业"
+            
+            is_filed = any(v.upper() == plate for v in filed_vehicles)
+            status = "filed" if is_filed else "pending"
+            
+            return {
+                "filename": file.filename,
+                "success": True,
+                "plate": plate,
+                "company": company,
+                "status": status,
+                "needs_pending_append": not is_filed
+            }
+            
+        except Exception as e:
+            return {
+                "filename": file.filename,
+                "success": False,
+                "msg": f"识别出错: {e}"
+            }
+
+    tasks = [process_single_file(file) for file in files]
+    completed_results = await asyncio.gather(*tasks)
+    
+    results = []
+    for res in completed_results:
+        if res.get("success") and res.get("needs_pending_append"):
+            plate = res["plate"]
+            company = res["company"]
+            if not any(item["plate"].upper() == plate for item in pending_list):
+                pending_list.append({
+                    "plate": plate,
+                    "company": company,
+                    "status": "pending",
+                    "added_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "source": res["filename"]
+                })
+        
+        # Clean up temporary field
+        if "needs_pending_append" in res:
+            del res["needs_pending_append"]
+            
+        results.append(res)
+        
+    save_pending_vehicles(pending_list)
+    return {"success": True, "results": results}
+
+@app.get("/api/admin/pending")
+async def get_pending_vehicles():
+    pending_list = load_pending_vehicles()
+    
+    # Load currently filed vehicles to re-match and filter
+    filed_vehicles = []
+    if os.path.exists(DATA_FILE):
+        try:
+            with open(DATA_FILE, "r", encoding="utf-8") as f:
+                filed_vehicles = json.load(f).get("vehicles", [])
+        except Exception:
+            pass
+            
+    filed_set = {v.strip().upper() for v in filed_vehicles}
+    
+    # Exclude already-filed vehicles
+    unfiled_pending = [item for item in pending_list if item.get("plate", "").strip().upper() not in filed_set]
+    
+    # Save the cleaned list back to file if changes occurred
+    if len(unfiled_pending) != len(pending_list):
+        save_pending_vehicles(unfiled_pending)
+        
+    return {"success": True, "pending_vehicles": unfiled_pending}
+
+@app.post("/api/admin/file-vehicle")
+async def file_vehicle(payload: FileVehiclePayload):
+    plate = payload.plate.strip().upper()
+    company = payload.company.strip()
+    original_plate = payload.original_plate.strip().upper() if payload.original_plate else plate
+    
+    if not plate:
+        raise HTTPException(status_code=400, detail="车牌号不能为空！")
+        
+    if not os.path.exists(DATA_FILE):
+        data = {
+            "worksite_name": "手动备案工地",
+            "last_updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "total_vehicles": 0,
+            "vehicles": [],
+            "transports": [],
+            "temporary_transports": []
+        }
+    else:
+        try:
+            with open(DATA_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"读取本地备案库失败: {e}")
+            
+    vehicles = data.get("vehicles", [])
+    if not any(v.upper() == plate for v in vehicles):
+        vehicles.append(plate)
+        data["vehicles"] = vehicles
+        data["total_vehicles"] = len(vehicles)
+        
+    if company and company != "未知企业":
+        transports = data.get("transports", [])
+        found_transport = False
+        for t in transports:
+            if t.get("companyname") == company:
+                carnumbers = t.get("carnumbers", "")
+                if carnumbers:
+                    car_list = [c.strip().upper() for c in carnumbers.split(",")]
+                    if plate not in car_list:
+                        t["carnumbers"] = carnumbers + "," + plate
+                        t["carcount"] = str(int(t.get("carcount", "0")) + 1)
+                else:
+                    t["carnumbers"] = plate
+                    t["carcount"] = "1"
+                found_transport = True
+                break
+                
+        if not found_transport:
+            temp_transports = data.get("temporary_transports", [])
+            for t in temp_transports:
+                if t.get("companyName") == company:
+                    carnumbers = t.get("carnumbers", "")
+                    if carnumbers:
+                        car_list = [c.strip().upper() for c in carnumbers.split(",")]
+                        if plate not in car_list:
+                            t["carnumbers"] = carnumbers + "," + plate
+                            t["carcount"] = t.get("carcount", 0) + 1
+                    else:
+                        t["carnumbers"] = plate
+                        t["carcount"] = 1
+                    found_transport = True
+                    break
+                    
+        if not found_transport:
+            temp_transports = data.get("temporary_transports", [])
+            temp_transports.append({
+                "id": str(int(datetime.now().timestamp())),
+                "companyId": str(int(datetime.now().timestamp())),
+                "companyName": company,
+                "address": "后台手动导入",
+                "legalRep": "管理员",
+                "phone": "-",
+                "carcount": 1,
+                "carnumbers": plate,
+                "startDate": datetime.now().strftime("%Y-%m-%d"),
+                "endDate": "2026-12-31"
+            })
+            data["temporary_transports"] = temp_transports
+            
+    try:
+        with open(DATA_FILE, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"保存备案库失败: {e}")
+        
+    pending_list = load_pending_vehicles()
+    found_in_pending = False
+    for item in pending_list:
+        if item["plate"].upper() == original_plate:
+            item["plate"] = plate
+            item["company"] = company
+            item["status"] = "filed"
+            found_in_pending = True
+            break
+            
+    if not found_in_pending:
+        for item in pending_list:
+            if item["plate"].upper() == plate:
+                item["status"] = "filed"
+                break
+            
+    save_pending_vehicles(pending_list)
+    return {"success": True}
+
+@app.post("/api/admin/delete-pending")
+async def delete_pending(payload: DeletePendingPayload):
+    plate = payload.plate.strip().upper()
+    if not plate:
+        raise HTTPException(status_code=400, detail="车牌号不能为空！")
+        
+    pending_list = load_pending_vehicles()
+    updated_list = [item for item in pending_list if item["plate"].upper() != plate]
+    save_pending_vehicles(updated_list)
+    return {"success": True}
+
+@app.post("/api/admin/update-pending")
+async def update_pending(payload: UpdatePendingPayload):
+    original_plate = payload.original_plate.strip().upper()
+    plate = payload.plate.strip().upper()
+    company = payload.company.strip()
+    
+    if not plate:
+        raise HTTPException(status_code=400, detail="车牌号不能为空！")
+        
+    pending_list = load_pending_vehicles()
+    found = False
+    for item in pending_list:
+        if item["plate"].upper() == original_plate:
+            item["plate"] = plate
+            item["company"] = company
+            found = True
+            break
+            
+    if not found:
+        for item in pending_list:
+            if item["plate"].upper() == plate:
+                item["company"] = company
+                found = True
+                break
+                
+    if not found:
+        raise HTTPException(status_code=404, detail="未找到对应的待备案记录")
+        
+    save_pending_vehicles(pending_list)
+    return {"success": True}
+
+@app.post("/api/admin/unfile-vehicle")
+async def unfile_vehicle(payload: UnfileVehiclePayload):
+    plate = payload.plate.strip().upper()
+    company = payload.company.strip()
+    
+    if not plate:
+        raise HTTPException(status_code=400, detail="车牌号不能为空！")
+        
+    if os.path.exists(DATA_FILE):
+        try:
+            with open(DATA_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"读取本地备案库失败: {e}")
+            
+        vehicles = data.get("vehicles", [])
+        updated_vehicles = [v for v in vehicles if v.upper() != plate]
+        data["vehicles"] = updated_vehicles
+        data["total_vehicles"] = len(updated_vehicles)
+        
+        transports = data.get("transports", [])
+        for t in transports:
+            if t.get("companyname") == company:
+                carnumbers = t.get("carnumbers", "")
+                if carnumbers:
+                    car_list = [c.strip().upper() for c in carnumbers.split(",") if c.strip().upper() != plate]
+                    t["carnumbers"] = ",".join(car_list)
+                    t["carcount"] = str(len(car_list))
+                    
+        temp_transports = data.get("temporary_transports", [])
+        for t in temp_transports:
+            if t.get("companyName") == company:
+                carnumbers = t.get("carnumbers", "")
+                if carnumbers:
+                    car_list = [c.strip().upper() for c in carnumbers.split(",") if c.strip().upper() != plate]
+                    t["carnumbers"] = ",".join(car_list)
+                    t["carcount"] = len(car_list)
+                    
+        try:
+            with open(DATA_FILE, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"保存备案库失败: {e}")
+            
+    pending_list = load_pending_vehicles()
+    for item in pending_list:
+        if item["plate"].upper() == plate:
+            item["status"] = "pending"
+            
+    save_pending_vehicles(pending_list)
+    return {"success": True}
 
 
 
