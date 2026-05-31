@@ -495,7 +495,7 @@ dom = {
     successPlate: $("successPlate"),
     successWorksite: $("successWorksite"),
     successTime: $("successTime"),
-    successSerial: $("successSerial"),
+    permitSerial: $("permitSerial"),
     
     failState: $("failState"),
     failPlate: $("failPlate"),
