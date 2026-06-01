@@ -685,15 +685,19 @@ async function queryWaybills() {
     setDisplay(dom.waybillsTablePanelSection, "block");
     setDisplay(dom.waybillSummaryStats, "none");
 
+    const searchCode = dom.waybillFilterCode.value.trim();
+    // If searchCode is not empty and does not start with "YD" (waybill code prefix), it is a plate search
+    const isPlateSearch = searchCode && !searchCode.toUpperCase().startsWith("YD");
+
     const payload = {
         authtoken: appConfig.authtoken,
         page: 1,
-        limit: parseInt(dom.waybillFilterLimit.value) || 50,
+        limit: isPlateSearch ? 500 : (parseInt(dom.waybillFilterLimit.value) || 50),
         id: dom.waybillFilterWorksiteId.value.trim(),
-        state: dom.waybillFilterState.value,
+        state: isPlateSearch ? "" : dom.waybillFilterState.value, // Fetch all states to filter locally
         starTime: dom.waybillFilterStarTime.value,
         endTime: dom.waybillFilterEndTime.value,
-        code: dom.waybillFilterCode.value.trim()
+        code: isPlateSearch ? "" : searchCode
     };
 
     try {
@@ -710,9 +714,26 @@ async function queryWaybills() {
         }
 
         const resultObj = data.result || {};
-        const rows = resultObj.rows || [];
-        const total = resultObj.total ?? 0;
-        const count = resultObj.count ?? 0.0;
+        let rows = resultObj.rows || [];
+        let total = resultObj.total ?? 0;
+        let count = resultObj.count ?? 0.0;
+
+        if (isPlateSearch) {
+            const upperSearch = searchCode.toUpperCase();
+            rows = rows.filter(item => 
+                (item.carnumberplate && item.carnumberplate.toUpperCase().includes(upperSearch)) ||
+                (item.code && item.code.toUpperCase().includes(upperSearch))
+            );
+            
+            // Re-apply state filter locally if selected
+            const selectedState = dom.waybillFilterState.value;
+            if (selectedState) {
+                rows = rows.filter(item => item.state === selectedState);
+            }
+            
+            total = rows.length;
+            count = rows.reduce((sum, item) => sum + (parseFloat(item.transportinoutnum) || 0), 0);
+        }
 
         dom.waybillStatsDisplay.textContent = `共检索到 ${total} 条运单记录 (当前页展示 ${rows.length} 条)`;
         
@@ -1115,12 +1136,12 @@ async function checkWaybillStatus(plate, type, stage) {
     const payload = {
         authtoken: appConfig.authtoken,
         page: 1,
-        limit: 50,
+        limit: 500, // Fetch more to cover all waybills of the day for local filtering
         id: "",
         state: "", // Fetch all to check combinations of transit / completed
         starTime: starTime,
         endTime: endTime,
-        code: plate
+        code: "" // Remote API only supports exact matching on waybill code, so we fetch all and filter locally by plate
     };
 
     try {
