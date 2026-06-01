@@ -1077,7 +1077,7 @@ async function checkWaybillStatus(plate, type) {
         page: 1,
         limit: 50,
         id: "",
-        state: type === "worksite" ? "运输中" : "已完成",
+        state: "", // Fetch all to check combinations of transit / completed
         starTime: starTime,
         endTime: endTime,
         code: plate
@@ -1101,19 +1101,24 @@ async function checkWaybillStatus(plate, type) {
 
         const rows = data.result.rows || [];
         
+        // Filter rows by current plate
+        const vehicleRows = rows.filter(item => item.carnumberplate === plate);
+        const activeInTransit = vehicleRows.find(item => item.state === "运输中");
+        
         if (type === "worksite") {
-            const hasInTransit = rows.some(item => item.state === "运输中" && item.carnumberplate === plate);
-            if (hasInTransit) {
-                return { success: true };
+            // Worksite scan is BLOCKED if there is already an active waybill in transit
+            if (activeInTransit) {
+                return { success: false, reason: "already_in_transit", waybill: activeInTransit };
             } else {
-                return { success: false, reason: "no_in_transit_waybill" };
+                return { success: true };
             }
         } else {
-            const completedWaybills = rows.filter(item => item.state === "已完成" && item.carnumberplate === plate);
-            if (completedWaybills.length === 0) {
-                return { success: false, reason: "no_completed_waybill" };
+            // Dump scan is ALLOWED if there is an active waybill in transit OR a recently completed waybill
+            if (activeInTransit) {
+                return { success: true, waybill: activeInTransit };
             }
             
+            const completedWaybills = vehicleRows.filter(item => item.state === "已完成");
             const now = new Date();
             let isRecent = false;
             let targetWaybill = null;
@@ -1135,7 +1140,7 @@ async function checkWaybillStatus(plate, type) {
             if (isRecent) {
                 return { success: true, waybill: targetWaybill };
             } else {
-                return { success: false, reason: "completed_but_not_recent" };
+                return { success: false, reason: "no_active_or_recent_waybill" };
             }
         }
     } catch (err) {
@@ -1160,18 +1165,16 @@ async function processQrScannedConfirm() {
         proceed = true;
     } else {
         let warnMsg = "";
-        if (validation.reason === "no_in_transit_waybill") {
-            warnMsg = `⚠️ 警告：未在运单监控中检测到车牌为 [${activeQrVehiclePlate}] 处于【运输中】状态的运单！\n\n这可能意味着司机尚未成功生成发车订单。若继续确认，可能导致多扫/漏扫。`;
-        } else if (validation.reason === "no_completed_waybill") {
-            warnMsg = `⚠️ 警告：未检测到车牌为 [${activeQrVehiclePlate}] 处于【已完成】状态的运单！\n\n这可能意味着消纳点扫码暂未上报成功。若继续确认，可能导致多扫/漏扫。`;
-        } else if (validation.reason === "completed_but_not_recent") {
-            warnMsg = `⚠️ 警告：检测到该车辆存在【已完成】运单，但完成时间与当前时间偏差超过 15 分钟！\n\n这可能是因为它是历史完成的旧单，非本次最新扫码生成的订单。若继续确认，可能导致多扫/漏扫。`;
+        if (validation.reason === "already_in_transit") {
+            warnMsg = `⚠️ 警告：检测到该车辆当前已有一个【运输中】状态的运单！\n\n这说明该车辆已在运输中，无需重复进行“扫工地”登记。若继续确认，可能导致多扫/漏扫。`;
+        } else if (validation.reason === "no_active_or_recent_waybill") {
+            warnMsg = `⚠️ 警告：未在系统中检测到该车辆有处于【运输中】的运单，且最近 15 分钟内也没有【已完成】的运单记录！\n\n这说明司机可能漏扫了工地，或者消纳点扫码暂未成功上报。若继续确认，可能导致多扫/漏扫。`;
         } else if (validation.reason === "api_error") {
             warnMsg = `⚠️ 网络或系统校验失败：${validation.message || "请求超时"}\n\n当前无法校验该车在官方运单中枢的最新状态。若继续确认，可能存在漏扫/多扫风险。`;
         } else if (validation.reason === "missing_token") {
             warnMsg = `⚠️ 系统接口未就绪：authtoken 缺失，无法与官方运单中枢进行数据校验！\n\n若继续确认，可能存在漏扫/多扫风险。`;
         } else {
-            warnMsg = `⚠️ 校验失败。继续确认可能导致多扫/漏扫。`;
+            warnMsg = `⚠️ 运单校验未通过。继续确认可能导致多扫/漏扫。`;
         }
         
         proceed = confirm(`${warnMsg}\n\n是否仍要强行确认扫码状态？`);
