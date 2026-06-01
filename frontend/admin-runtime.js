@@ -1011,7 +1011,7 @@ window.openQrCodeModal = async function(plate, type) {
         }
     }
 
-    const validation = await checkWaybillStatus(plate, type);
+    const validation = await checkWaybillStatus(plate, type, "open");
     
     if (targetBtn) {
         targetBtn.disabled = false;
@@ -1025,8 +1025,8 @@ window.openQrCodeModal = async function(plate, type) {
         let warnMsg = "";
         if (validation.reason === "already_in_transit") {
             warnMsg = `⚠️ 警告：检测到该车辆当前已有一个【运输中】状态的运单！\n\n这说明该车辆已在运输中，无需重复进行“扫工地”登记。是否仍要强行查看二维码？`;
-        } else if (validation.reason === "no_active_or_recent_waybill") {
-            warnMsg = `⚠️ 警告：未在系统中检测到该车辆有处于【运输中】的运单，且最近 15 分钟内也没有【已完成】的运单记录！\n\n这说明司机可能漏扫了工地，或者消纳点扫码暂未成功上报。是否仍要强行查看二维码？`;
+        } else if (validation.reason === "no_active_waybill") {
+            warnMsg = `⚠️ 警告：检测到该车辆目前没有【运输中】状态的运单！\n\n这说明该车辆尚未开始本次运输，无法进行“扫土点”登记。是否仍要强行查看二维码？`;
         } else if (validation.reason === "api_error") {
             warnMsg = `⚠️ 网络或系统校验失败：${validation.message || "请求超时"}\n\n当前无法校验该车在官方运单中枢的最新状态。是否仍要强行查看二维码？`;
         } else if (validation.reason === "missing_token") {
@@ -1105,7 +1105,7 @@ function getQueryDateRange() {
     return { starTime, endTime };
 }
 
-async function checkWaybillStatus(plate, type) {
+async function checkWaybillStatus(plate, type, stage) {
     if (!appConfig.authtoken) {
         return { success: false, reason: "missing_token" };
     }
@@ -1145,42 +1145,57 @@ async function checkWaybillStatus(plate, type) {
         const vehicleRows = rows.filter(item => item.carnumberplate === plate);
         const activeInTransit = vehicleRows.find(item => item.state === "运输中");
         
-        if (type === "worksite") {
-            // Worksite scan is BLOCKED if there is already an active waybill in transit
-            if (activeInTransit) {
-                return { success: false, reason: "already_in_transit", waybill: activeInTransit };
+        if (stage === "open") {
+            if (type === "worksite") {
+                // Worksite scan is BLOCKED if there is already an active waybill in transit
+                if (activeInTransit) {
+                    return { success: false, reason: "already_in_transit", waybill: activeInTransit };
+                } else {
+                    return { success: true };
+                }
             } else {
-                return { success: true };
-            }
-        } else {
-            // Dump scan is ALLOWED if there is an active waybill in transit OR a recently completed waybill
-            if (activeInTransit) {
-                return { success: true, waybill: activeInTransit };
-            }
-            
-            const completedWaybills = vehicleRows.filter(item => item.state === "已完成");
-            const now = new Date();
-            let isRecent = false;
-            let targetWaybill = null;
-            
-            for (const item of completedWaybills) {
-                if (!item.arrivetime) continue;
-                const arriveDate = new Date(item.arrivetime.replace(/-/g, "/"));
-                const diffMs = now - arriveDate;
-                const diffMins = diffMs / (1000 * 60);
-                
-                // Allow clock tolerance (15 minutes drift either way)
-                if (Math.abs(diffMins) <= 15) {
-                    isRecent = true;
-                    targetWaybill = item;
-                    break;
+                // Dump scan requires an active waybill in transit
+                if (activeInTransit) {
+                    return { success: true, waybill: activeInTransit };
+                } else {
+                    return { success: false, reason: "no_active_waybill" };
                 }
             }
-            
-            if (isRecent) {
-                return { success: true, waybill: targetWaybill };
+        } else {
+            // stage === "confirm"
+            if (type === "worksite") {
+                // Confirming worksite scan requires that a new in-transit waybill HAS appeared
+                if (activeInTransit) {
+                    return { success: true, waybill: activeInTransit };
+                } else {
+                    return { success: false, reason: "no_in_transit_waybill" };
+                }
             } else {
-                return { success: false, reason: "no_active_or_recent_waybill" };
+                // Confirming dump scan requires a recently completed waybill (within last 15 minutes)
+                const completedWaybills = vehicleRows.filter(item => item.state === "已完成");
+                const now = new Date();
+                let isRecent = false;
+                let targetWaybill = null;
+                
+                for (const item of completedWaybills) {
+                    if (!item.arrivetime) continue;
+                    const arriveDate = new Date(item.arrivetime.replace(/-/g, "/"));
+                    const diffMs = now - arriveDate;
+                    const diffMins = diffMs / (1000 * 60);
+                    
+                    // Allow clock tolerance (15 minutes drift either way)
+                    if (Math.abs(diffMins) <= 15) {
+                        isRecent = true;
+                        targetWaybill = item;
+                        break;
+                    }
+                }
+                
+                if (isRecent) {
+                    return { success: true, waybill: targetWaybill };
+                } else {
+                    return { success: false, reason: "no_recent_completed_waybill" };
+                }
             }
         }
     } catch (err) {
@@ -1189,31 +1204,66 @@ async function checkWaybillStatus(plate, type) {
     }
 }
 
-function processQrScannedConfirm() {
+async function processQrScannedConfirm() {
     if (!activeQrVehiclePlate || !activeQrType) return;
 
-    const vehicle = qrVehiclesList.find(v => v.plate === activeQrVehiclePlate);
-    if (vehicle) {
-        const now = new Date();
-        const hh = String(now.getHours()).padStart(2, "0");
-        const mm = String(now.getMinutes()).padStart(2, "0");
-        const ss = String(now.getSeconds()).padStart(2, "0");
-        const timeStr = `${hh}:${mm}:${ss}`;
-        vehicle.lastScannedTime = timeStr;
+    const confirmBtn = dom.confirmQrScannedBtn;
+    const originalText = confirmBtn.innerHTML;
+    const originalStyle = confirmBtn.style.background;
+    
+    confirmBtn.disabled = true;
+    confirmBtn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> 校验中...`;
+    confirmBtn.style.background = "#4b5563"; // gray out
 
-        if (activeQrType === "worksite") {
-            vehicle.status = 1; // Mark Worksited, waiting dump
-            vehicle.worksiteTime = timeStr;
+    const validation = await checkWaybillStatus(activeQrVehiclePlate, activeQrType, "confirm");
+    
+    let proceed = false;
+    if (validation.success) {
+        proceed = true;
+    } else {
+        let warnMsg = "";
+        if (validation.reason === "no_in_transit_waybill") {
+            warnMsg = `⚠️ 警告：未在系统中检测到该车辆处于【运输中】的运单！\n\n这可能意味着司机尚未成功生成发车订单（漏扫工地）。是否仍要强行确认？`;
+        } else if (validation.reason === "no_recent_completed_waybill") {
+            warnMsg = `⚠️ 警告：未检测到该车辆最近 15 分钟内有【已完成】的运单记录！\n\n这可能意味着消纳点扫码暂未成功上报。是否仍要强行确认？`;
+        } else if (validation.reason === "api_error") {
+            warnMsg = `⚠️ 网络或系统校验失败：${validation.message || "请求超时"}\n\n当前无法校验最新状态。是否仍要强行确认？`;
+        } else if (validation.reason === "missing_token") {
+            warnMsg = `⚠️ 系统接口未就绪：authtoken 缺失。是否仍要强行确认？`;
         } else {
-            vehicle.status = 0; // Completed scan cycle, reset to worksite scan
-            vehicle.dumpTime = timeStr;
+            warnMsg = `⚠️ 运单校验未通过。是否仍要强行确认？`;
         }
-        
-        localStorage.setItem(QR_STORAGE_KEY, JSON.stringify(qrVehiclesList));
-        saveQrConfigToServer();
-        renderQrGrid();
+        proceed = confirm(warnMsg);
     }
-    closeAllModals();
+
+    if (proceed) {
+        const vehicle = qrVehiclesList.find(v => v.plate === activeQrVehiclePlate);
+        if (vehicle) {
+            const now = new Date();
+            const hh = String(now.getHours()).padStart(2, "0");
+            const mm = String(now.getMinutes()).padStart(2, "0");
+            const ss = String(now.getSeconds()).padStart(2, "0");
+            const timeStr = `${hh}:${mm}:${ss}`;
+            vehicle.lastScannedTime = timeStr;
+
+            if (activeQrType === "worksite") {
+                vehicle.status = 1; // Mark Worksited, waiting dump
+                vehicle.worksiteTime = timeStr;
+            } else {
+                vehicle.status = 0; // Completed scan cycle, reset to worksite scan
+                vehicle.dumpTime = timeStr;
+            }
+            
+            localStorage.setItem(QR_STORAGE_KEY, JSON.stringify(qrVehiclesList));
+            await saveQrConfigToServer();
+            renderQrGrid();
+        }
+        closeAllModals();
+    } else {
+        confirmBtn.disabled = false;
+        confirmBtn.innerHTML = originalText;
+        confirmBtn.style.background = originalStyle;
+    }
 }
 
 window.openBatchAddModal = function() {
