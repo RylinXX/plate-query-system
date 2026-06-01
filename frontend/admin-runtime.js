@@ -998,7 +998,47 @@ window.deleteQrVehicle = function(plate) {
     renderQrGrid();
 };
 
-window.openQrCodeModal = function(plate, type) {
+window.openQrCodeModal = async function(plate, type) {
+    const card = document.querySelector(`.qr-vehicle-card[data-plate="${plate}"]`);
+    let targetBtn = null;
+    let originalHtml = "";
+    if (card) {
+        targetBtn = card.querySelector(type === "worksite" ? ".btn-qr-worksite" : ".btn-qr-dump");
+        if (targetBtn) {
+            originalHtml = targetBtn.innerHTML;
+            targetBtn.disabled = true;
+            targetBtn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> 校验中`;
+        }
+    }
+
+    const validation = await checkWaybillStatus(plate, type);
+    
+    if (targetBtn) {
+        targetBtn.disabled = false;
+        targetBtn.innerHTML = originalHtml;
+    }
+
+    let proceed = false;
+    if (validation.success) {
+        proceed = true;
+    } else {
+        let warnMsg = "";
+        if (validation.reason === "already_in_transit") {
+            warnMsg = `⚠️ 警告：检测到该车辆当前已有一个【运输中】状态的运单！\n\n这说明该车辆已在运输中，无需重复进行“扫工地”登记。是否仍要强行查看二维码？`;
+        } else if (validation.reason === "no_active_or_recent_waybill") {
+            warnMsg = `⚠️ 警告：未在系统中检测到该车辆有处于【运输中】的运单，且最近 15 分钟内也没有【已完成】的运单记录！\n\n这说明司机可能漏扫了工地，或者消纳点扫码暂未成功上报。是否仍要强行查看二维码？`;
+        } else if (validation.reason === "api_error") {
+            warnMsg = `⚠️ 网络或系统校验失败：${validation.message || "请求超时"}\n\n当前无法校验该车在官方运单中枢的最新状态。是否仍要强行查看二维码？`;
+        } else if (validation.reason === "missing_token") {
+            warnMsg = `⚠️ 系统接口未就绪：authtoken 缺失，无法与官方运单中枢进行数据校验！是否仍要强行查看二维码？`;
+        } else {
+            warnMsg = `⚠️ 运单校验未通过。是否仍要强行查看二维码？`;
+        }
+        proceed = confirm(warnMsg);
+    }
+
+    if (!proceed) return;
+
     activeQrVehiclePlate = plate;
     activeQrType = type;
 
@@ -1149,65 +1189,31 @@ async function checkWaybillStatus(plate, type) {
     }
 }
 
-async function processQrScannedConfirm() {
+function processQrScannedConfirm() {
     if (!activeQrVehiclePlate || !activeQrType) return;
 
-    const confirmBtn = dom.confirmQrScannedBtn;
-    const originalText = confirmBtn.innerHTML;
-    const originalStyle = confirmBtn.style.background;
-    confirmBtn.disabled = true;
-    confirmBtn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> 正在校验运单...`;
+    const vehicle = qrVehiclesList.find(v => v.plate === activeQrVehiclePlate);
+    if (vehicle) {
+        const now = new Date();
+        const hh = String(now.getHours()).padStart(2, "0");
+        const mm = String(now.getMinutes()).padStart(2, "0");
+        const ss = String(now.getSeconds()).padStart(2, "0");
+        const timeStr = `${hh}:${mm}:${ss}`;
+        vehicle.lastScannedTime = timeStr;
 
-    const validation = await checkWaybillStatus(activeQrVehiclePlate, activeQrType);
-    
-    let proceed = false;
-    if (validation.success) {
-        proceed = true;
-    } else {
-        let warnMsg = "";
-        if (validation.reason === "already_in_transit") {
-            warnMsg = `⚠️ 警告：检测到该车辆当前已有一个【运输中】状态的运单！\n\n这说明该车辆已在运输中，无需重复进行“扫工地”登记。若继续确认，可能导致多扫/漏扫。`;
-        } else if (validation.reason === "no_active_or_recent_waybill") {
-            warnMsg = `⚠️ 警告：未在系统中检测到该车辆有处于【运输中】的运单，且最近 15 分钟内也没有【已完成】的运单记录！\n\n这说明司机可能漏扫了工地，或者消纳点扫码暂未成功上报。若继续确认，可能导致多扫/漏扫。`;
-        } else if (validation.reason === "api_error") {
-            warnMsg = `⚠️ 网络或系统校验失败：${validation.message || "请求超时"}\n\n当前无法校验该车在官方运单中枢的最新状态。若继续确认，可能存在漏扫/多扫风险。`;
-        } else if (validation.reason === "missing_token") {
-            warnMsg = `⚠️ 系统接口未就绪：authtoken 缺失，无法与官方运单中枢进行数据校验！\n\n若继续确认，可能存在漏扫/多扫风险。`;
+        if (activeQrType === "worksite") {
+            vehicle.status = 1; // Mark Worksited, waiting dump
+            vehicle.worksiteTime = timeStr;
         } else {
-            warnMsg = `⚠️ 运单校验未通过。继续确认可能导致多扫/漏扫。`;
+            vehicle.status = 0; // Completed scan cycle, reset to worksite scan
+            vehicle.dumpTime = timeStr;
         }
         
-        proceed = confirm(`${warnMsg}\n\n是否仍要强行确认扫码状态？`);
+        localStorage.setItem(QR_STORAGE_KEY, JSON.stringify(qrVehiclesList));
+        saveQrConfigToServer();
+        renderQrGrid();
     }
-
-    if (proceed) {
-        const vehicle = qrVehiclesList.find(v => v.plate === activeQrVehiclePlate);
-        if (vehicle) {
-            const now = new Date();
-            const hh = String(now.getHours()).padStart(2, "0");
-            const mm = String(now.getMinutes()).padStart(2, "0");
-            const ss = String(now.getSeconds()).padStart(2, "0");
-            const timeStr = `${hh}:${mm}:${ss}`;
-            vehicle.lastScannedTime = timeStr;
-
-            if (activeQrType === "worksite") {
-                vehicle.status = 1; // Mark Worksited, waiting dump
-                vehicle.worksiteTime = timeStr;
-            } else {
-                vehicle.status = 0; // Completed scan cycle, reset to worksite scan
-                vehicle.dumpTime = timeStr;
-            }
-            
-            localStorage.setItem(QR_STORAGE_KEY, JSON.stringify(qrVehiclesList));
-            await saveQrConfigToServer();
-            renderQrGrid();
-        }
-        closeAllModals();
-    } else {
-        confirmBtn.disabled = false;
-        confirmBtn.innerHTML = originalText;
-        confirmBtn.style.background = originalStyle;
-    }
+    closeAllModals();
 }
 
 window.openBatchAddModal = function() {
