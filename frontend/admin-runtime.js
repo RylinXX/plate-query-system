@@ -1044,31 +1044,162 @@ function closeAllModals() {
     activeQrType = null;
 }
 
-function processQrScannedConfirm() {
+function getQueryDateRange() {
+    let starTime = dom.waybillFilterStarTime ? dom.waybillFilterStarTime.value : "";
+    let endTime = dom.waybillFilterEndTime ? dom.waybillFilterEndTime.value : "";
+    
+    if (!starTime || !endTime) {
+        const today = new Date();
+        const yyyy = today.getFullYear();
+        const mm = String(today.getMonth() + 1).padStart(2, '0');
+        const dd = String(today.getDate()).padStart(2, '0');
+        const dateStr = `${yyyy}-${mm}-${dd}`;
+        starTime = starTime || dateStr;
+        endTime = endTime || dateStr;
+    }
+    return { starTime, endTime };
+}
+
+async function checkWaybillStatus(plate, type) {
+    if (!appConfig.authtoken) {
+        return { success: false, reason: "missing_token" };
+    }
+
+    const { starTime, endTime } = getQueryDateRange();
+    
+    const payload = {
+        authtoken: appConfig.authtoken,
+        page: 1,
+        limit: 50,
+        id: "",
+        state: type === "worksite" ? "运输中" : "已完成",
+        starTime: starTime,
+        endTime: endTime,
+        code: plate
+    };
+
+    try {
+        const response = await fetch(`${BACKEND_URL}/api/waybills`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+
+        const data = await response.json();
+        if (!data.success || !data.result) {
+            throw new Error(data.message || data.msg || "接口返回异常");
+        }
+
+        const rows = data.result.rows || [];
+        
+        if (type === "worksite") {
+            const hasInTransit = rows.some(item => item.state === "运输中" && item.carnumberplate === plate);
+            if (hasInTransit) {
+                return { success: true };
+            } else {
+                return { success: false, reason: "no_in_transit_waybill" };
+            }
+        } else {
+            const completedWaybills = rows.filter(item => item.state === "已完成" && item.carnumberplate === plate);
+            if (completedWaybills.length === 0) {
+                return { success: false, reason: "no_completed_waybill" };
+            }
+            
+            const now = new Date();
+            let isRecent = false;
+            let targetWaybill = null;
+            
+            for (const item of completedWaybills) {
+                if (!item.arrivetime) continue;
+                const arriveDate = new Date(item.arrivetime.replace(/-/g, "/"));
+                const diffMs = now - arriveDate;
+                const diffMins = diffMs / (1000 * 60);
+                
+                // Allow clock tolerance (15 minutes drift either way)
+                if (Math.abs(diffMins) <= 15) {
+                    isRecent = true;
+                    targetWaybill = item;
+                    break;
+                }
+            }
+            
+            if (isRecent) {
+                return { success: true, waybill: targetWaybill };
+            } else {
+                return { success: false, reason: "completed_but_not_recent" };
+            }
+        }
+    } catch (err) {
+        console.error("运单状态校验请求出错:", err);
+        return { success: false, reason: "api_error", message: err.message };
+    }
+}
+
+async function processQrScannedConfirm() {
     if (!activeQrVehiclePlate || !activeQrType) return;
 
-    const vehicle = qrVehiclesList.find(v => v.plate === activeQrVehiclePlate);
-    if (vehicle) {
-        const now = new Date();
-        const hh = String(now.getHours()).padStart(2, "0");
-        const mm = String(now.getMinutes()).padStart(2, "0");
-        const ss = String(now.getSeconds()).padStart(2, "0");
-        const timeStr = `${hh}:${mm}:${ss}`;
-        vehicle.lastScannedTime = timeStr;
+    const confirmBtn = dom.confirmQrScannedBtn;
+    const originalText = confirmBtn.innerHTML;
+    const originalStyle = confirmBtn.style.background;
+    confirmBtn.disabled = true;
+    confirmBtn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> 正在校验运单...`;
 
-        if (activeQrType === "worksite") {
-            vehicle.status = 1; // Mark Worksited, waiting dump
-            vehicle.worksiteTime = timeStr;
+    const validation = await checkWaybillStatus(activeQrVehiclePlate, activeQrType);
+    
+    let proceed = false;
+    if (validation.success) {
+        proceed = true;
+    } else {
+        let warnMsg = "";
+        if (validation.reason === "no_in_transit_waybill") {
+            warnMsg = `⚠️ 警告：未在运单监控中检测到车牌为 [${activeQrVehiclePlate}] 处于【运输中】状态的运单！\n\n这可能意味着司机尚未成功生成发车订单。若继续确认，可能导致多扫/漏扫。`;
+        } else if (validation.reason === "no_completed_waybill") {
+            warnMsg = `⚠️ 警告：未检测到车牌为 [${activeQrVehiclePlate}] 处于【已完成】状态的运单！\n\n这可能意味着消纳点扫码暂未上报成功。若继续确认，可能导致多扫/漏扫。`;
+        } else if (validation.reason === "completed_but_not_recent") {
+            warnMsg = `⚠️ 警告：检测到该车辆存在【已完成】运单，但完成时间与当前时间偏差超过 15 分钟！\n\n这可能是因为它是历史完成的旧单，非本次最新扫码生成的订单。若继续确认，可能导致多扫/漏扫。`;
+        } else if (validation.reason === "api_error") {
+            warnMsg = `⚠️ 网络或系统校验失败：${validation.message || "请求超时"}\n\n当前无法校验该车在官方运单中枢的最新状态。若继续确认，可能存在漏扫/多扫风险。`;
+        } else if (validation.reason === "missing_token") {
+            warnMsg = `⚠️ 系统接口未就绪：authtoken 缺失，无法与官方运单中枢进行数据校验！\n\n若继续确认，可能存在漏扫/多扫风险。`;
         } else {
-            vehicle.status = 0; // Completed scan cycle, reset to worksite scan
-            vehicle.dumpTime = timeStr;
+            warnMsg = `⚠️ 校验失败。继续确认可能导致多扫/漏扫。`;
         }
         
-        localStorage.setItem(QR_STORAGE_KEY, JSON.stringify(qrVehiclesList));
-        saveQrConfigToServer();
-        renderQrGrid();
+        proceed = confirm(`${warnMsg}\n\n是否仍要强行确认扫码状态？`);
     }
-    closeAllModals();
+
+    if (proceed) {
+        const vehicle = qrVehiclesList.find(v => v.plate === activeQrVehiclePlate);
+        if (vehicle) {
+            const now = new Date();
+            const hh = String(now.getHours()).padStart(2, "0");
+            const mm = String(now.getMinutes()).padStart(2, "0");
+            const ss = String(now.getSeconds()).padStart(2, "0");
+            const timeStr = `${hh}:${mm}:${ss}`;
+            vehicle.lastScannedTime = timeStr;
+
+            if (activeQrType === "worksite") {
+                vehicle.status = 1; // Mark Worksited, waiting dump
+                vehicle.worksiteTime = timeStr;
+            } else {
+                vehicle.status = 0; // Completed scan cycle, reset to worksite scan
+                vehicle.dumpTime = timeStr;
+            }
+            
+            localStorage.setItem(QR_STORAGE_KEY, JSON.stringify(qrVehiclesList));
+            await saveQrConfigToServer();
+            renderQrGrid();
+        }
+        closeAllModals();
+    } else {
+        confirmBtn.disabled = false;
+        confirmBtn.innerHTML = originalText;
+        confirmBtn.style.background = originalStyle;
+    }
 }
 
 window.openBatchAddModal = function() {
