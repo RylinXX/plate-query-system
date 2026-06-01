@@ -580,6 +580,48 @@
 
             <!-- 下部主面板：参数保存与密钥 -->
             <main class="admin-main-full">
+                <!-- 外部公开查询接口配置 -->
+                <section class="glass-panel" style="margin-bottom: 24px;">
+                    <h2 class="panel-title" style="font-size: 18px; margin-bottom: 20px;">
+                        <i class="fa-solid fa-share-nodes logo-icon-cyan"></i> 外部公开查询接口配置
+                    </h2>
+                    
+                    <div style="display: flex; flex-direction: column; gap: 16px; margin-bottom: 16px;">
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label class="form-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                <input type="checkbox" id="publicApiEnabledCheckbox" checked style="width: 18px; height: 18px; cursor: pointer;">
+                                启用外部公开查询接口 (GET /api/public/vehicle-query)
+                            </label>
+                            <span class="form-help" style="margin-left: 26px;">启用后，第三方系统可以通过此接口查询车辆是否备案及所属企业信息。</span>
+                        </div>
+                        
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label class="form-label" for="publicApiKeyInput">外部查询接口 API Key (留空表示不限制凭证校验，任何人都可公开查询)</label>
+                            <div style="display: flex; gap: 8px;">
+                                <input type="text" id="publicApiKeyInput" class="form-input text-monospace" placeholder="输入密钥，例如：my-secret-api-key" style="font-family: monospace;">
+                                <button class="btn btn-secondary btn-small" id="generateApiKeyBtn" type="button" style="white-space: nowrap; height: 38px;">
+                                    <i class="fa-solid fa-arrows-rotate"></i> 随机生成
+                                </button>
+                            </div>
+                            <span class="form-help">若设置此密钥，第三方系统调用时必须在 Header 中携带 <code>X-API-Key: 您的密钥</code> 或在 Query 参数中携带 <code>&apikey=您的密钥</code>。</span>
+                        </div>
+
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label class="form-label">当前外部 API 调用地址</label>
+                            <div style="display: flex; gap: 8px; align-items: center; background: rgba(255,255,255,0.03); padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(142,170,201,0.15);">
+                                <code id="publicApiUrlDisplay" style="font-family: monospace; font-size: 12px; word-break: break-all; flex: 1;">http://127.0.0.1:8001/api/public/vehicle-query?plate_no=京AFE851</code>
+                                <button class="btn btn-secondary btn-mini" id="copyPublicApiUrlBtn" type="button" style="padding: 6px 10px; height: 28px;">
+                                    <i class="fa-solid fa-copy"></i> 复制
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button class="btn btn-primary" id="savePublicApiConfigBtn" style="padding: 10px 24px; font-weight: 600;">
+                        <i class="fa-solid fa-floppy-disk"></i> 保存外部接口配置
+                    </button>
+                </section>
+
                 <section class="glass-panel">
                     <h2 class="panel-title" style="font-size: 18px; margin-bottom: 20px;">
                         <i class="fa-solid fa-sliders logo-icon-cyan"></i> 系统接口密钥授权配置

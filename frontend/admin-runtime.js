@@ -162,7 +162,15 @@ function initDom() {
         captchaCodeInput: $("captchaCodeInput"),
         autoLoginBtn: $("autoLoginBtn"),
         loginStatus: $("loginStatus"),
-        syncConfigFromServerBtn: $("syncConfigFromServerBtn")
+        syncConfigFromServerBtn: $("syncConfigFromServerBtn"),
+        
+        // Public API config
+        publicApiEnabledCheckbox: $("publicApiEnabledCheckbox"),
+        publicApiKeyInput: $("publicApiKeyInput"),
+        publicApiUrlDisplay: $("publicApiUrlDisplay"),
+        copyPublicApiUrlBtn: $("copyPublicApiUrlBtn"),
+        generateApiKeyBtn: $("generateApiKeyBtn"),
+        savePublicApiConfigBtn: $("savePublicApiConfigBtn")
     };
 }
 
@@ -280,6 +288,91 @@ async function loadVolcConfig() {
         console.error("加载密钥配置失败:", err);
     }
 }
+
+// Public API configuration load/save
+async function loadPublicApiConfig() {
+    try {
+        const response = await fetch(`${BACKEND_URL}/api/admin/public-api-config`, { cache: "no-store" });
+        const data = await response.json();
+        if (data.success) {
+            if (dom.publicApiEnabledCheckbox) {
+                dom.publicApiEnabledCheckbox.checked = data.public_api_enabled;
+            }
+            if (dom.publicApiKeyInput) {
+                dom.publicApiKeyInput.value = data.public_api_key || "";
+            }
+            updatePublicApiUrlDisplay();
+        }
+    } catch (err) {
+        console.error("加载外部 API 配置失败:", err);
+    }
+}
+
+function updatePublicApiUrlDisplay() {
+    if (!dom.publicApiUrlDisplay) return;
+    const enabled = dom.publicApiEnabledCheckbox ? dom.publicApiEnabledCheckbox.checked : true;
+    if (!enabled) {
+        dom.publicApiUrlDisplay.textContent = "接口已被禁用";
+        if (dom.copyPublicApiUrlBtn) dom.copyPublicApiUrlBtn.disabled = true;
+        return;
+    }
+    if (dom.copyPublicApiUrlBtn) dom.copyPublicApiUrlBtn.disabled = false;
+    const key = dom.publicApiKeyInput ? dom.publicApiKeyInput.value.trim() : "";
+    let url = `${window.location.origin}/api/public/vehicle-query?plate_no=京AFE851`;
+    if (key) {
+        url += `&apikey=${encodeURIComponent(key)}`;
+    }
+    dom.publicApiUrlDisplay.textContent = url;
+}
+
+async function savePublicApiConfig() {
+    const enabled = dom.publicApiEnabledCheckbox ? dom.publicApiEnabledCheckbox.checked : true;
+    const key = dom.publicApiKeyInput ? dom.publicApiKeyInput.value.trim() : "";
+
+    try {
+        if (dom.savePublicApiConfigBtn) dom.savePublicApiConfigBtn.disabled = true;
+        const response = await fetch(`${BACKEND_URL}/api/admin/public-api-config`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ public_api_enabled: enabled, public_api_key: key })
+        });
+        const data = await response.json();
+        if (data.success) {
+            alert("🎉 外部公开查询接口配置保存成功！");
+            updatePublicApiUrlDisplay();
+        } else {
+            alert("保存失败: " + (data.detail || "未知错误"));
+        }
+    } catch (err) {
+        alert("请求出错: " + err.message);
+    } finally {
+        if (dom.savePublicApiConfigBtn) dom.savePublicApiConfigBtn.disabled = false;
+    }
+}
+
+function generateApiKey() {
+    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    let key = "";
+    for (let i = 0; i < 16; i++) {
+        key += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    if (dom.publicApiKeyInput) {
+        dom.publicApiKeyInput.value = key;
+        updatePublicApiUrlDisplay();
+    }
+}
+
+function copyPublicApiUrl() {
+    const url = dom.publicApiUrlDisplay ? dom.publicApiUrlDisplay.textContent : "";
+    if (!url || url === "接口已被禁用") return;
+    
+    navigator.clipboard.writeText(url).then(() => {
+        alert("📋 外部 API 调用链接已成功复制到剪贴板！");
+    }).catch(err => {
+        alert("复制失败: " + err.message);
+    });
+}
+
 
 async function saveVolcConfig() {
     const ak = dom.volcAkInput.value.trim();
@@ -1685,6 +1778,7 @@ document.addEventListener("DOMContentLoaded", () => {
     loadConfigFromServer();
     fetchLocalData();
     loadVolcConfig();
+    loadPublicApiConfig();
     loadPendingList();
     setupUploadEvents();
     loadQrConfig();
@@ -1692,6 +1786,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Key configuration
     safeAddListener(dom.saveVolcConfigBtn, "click", saveVolcConfig);
+    safeAddListener(dom.savePublicApiConfigBtn, "click", savePublicApiConfig);
+    safeAddListener(dom.generateApiKeyBtn, "click", generateApiKey);
+    safeAddListener(dom.copyPublicApiUrlBtn, "click", copyPublicApiUrl);
+    if (dom.publicApiEnabledCheckbox) {
+        dom.publicApiEnabledCheckbox.addEventListener("change", updatePublicApiUrlDisplay);
+    }
+    if (dom.publicApiKeyInput) {
+        dom.publicApiKeyInput.addEventListener("input", updatePublicApiUrlDisplay);
+    }
     safeAddListener(dom.refreshPendingBtn, "click", loadPendingList);
     safeAddListener(dom.themeToggleBtn, "click", toggleTheme);
 

@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Body
+from fastapi import FastAPI, HTTPException, Body, Header
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Any, Dict, List, Optional
@@ -68,6 +68,11 @@ class LoginTokenRequest(BaseModel):
     password: str
     code: str
     uuid: str = ""
+
+
+class PublicApiConfigPayload(BaseModel):
+    public_api_enabled: bool = True
+    public_api_key: str = ""
 
 
 REMOTE_BASE_URL = "http://ztxn.capcloud.com.cn:8080/dregs_service-dev"
@@ -517,6 +522,161 @@ async def get_backend_config():
         )
 
 
+@app.get("/api/public/vehicle-query")
+async def public_vehicle_query(
+    plate_no: Optional[str] = None,
+    apikey: Optional[str] = None,
+    X_API_Key: Optional[str] = Header(None)
+):
+    """
+    对外公开/受控车牌查询接口：允许第三方系统通过车牌号查询备案信息，或者获取全部已备案的车辆及运输公司数据库。
+    """
+    # 1. 读取接口配置以判定是否开启及是否需要密钥校验
+    api_enabled = True
+    configured_key = ""
+    if os.path.exists(CONFIG_FILE):
+        try:
+            with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+                config = json.load(f)
+                api_enabled = config.get("public_api_enabled", True)
+                configured_key = config.get("public_api_key", "").strip()
+        except Exception:
+            pass
+
+    if not api_enabled:
+        raise HTTPException(
+            status_code=403,
+            detail="公共查询接口已被管理员禁用。"
+        )
+
+    # 2. 校验密钥 (支持 Header 和 Query 参数)
+    if configured_key:
+        provided_key = apikey or X_API_Key
+        if not provided_key or provided_key.strip() != configured_key:
+            raise HTTPException(
+                status_code=401,
+                detail="API 密钥 (API Key) 无效或未提供。"
+            )
+
+    # 3. 读取本地已同步备案库 file
+    if not os.path.exists(DATA_FILE):
+        return {
+            "success": True,
+            "is_filed": False,
+            "message": "本地尚未同步备案数据库，请先在控制台执行一键数据同步。"
+        }
+
+    try:
+        with open(DATA_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"读取本地数据失败: {e}"
+        )
+
+    vehicles = data.get("vehicles", [])
+    transports = data.get("transports", [])
+    temp_transports = data.get("temporary_transports", [])
+
+    # 4. 构建企业备案映射字典以加速反查 (将车辆与企业信息关联)
+    plate_lookup = {}
+    
+    # 4.1 常驻备案企业
+    for t in transports:
+        company_name = t.get("companyname") or "未知企业"
+        phone = t.get("phone") or "-"
+        address = t.get("address") or "-"
+        carnumbers = t.get("carnumbers", "")
+        if carnumbers:
+            for c in carnumbers.split(","):
+                c_clean = c.strip().upper()
+                if c_clean:
+                    plate_lookup[c_clean] = {
+                        "company_name": company_name,
+                        "phone": phone,
+                        "address": address,
+                        "transport_type": "permanent"
+                    }
+
+    # 4.2 临时备案企业
+    for t in temp_transports:
+        company_name = t.get("companyName") or "未知企业"
+        phone = t.get("phone") or "-"
+        address = t.get("address") or "-"
+        carnumbers = t.get("carnumbers", "")
+        if carnumbers:
+            for c in carnumbers.split(","):
+                c_clean = c.strip().upper()
+                if c_clean:
+                    if c_clean not in plate_lookup:
+                        plate_lookup[c_clean] = {
+                            "company_name": company_name,
+                            "phone": phone,
+                            "address": address,
+                            "transport_type": "temporary"
+                        }
+
+    # 5. 分流业务逻辑：根据是否传入单个车牌进行响应
+    if plate_no is not None and plate_no.strip():
+        # 5.1 单个车牌校验
+        plate_no_clean = plate_no.strip().upper()
+        is_filed = any(v.upper() == plate_no_clean for v in vehicles)
+        
+        if not is_filed:
+            return {
+                "success": True,
+                "is_filed": False,
+                "plate_no": plate_no_clean,
+                "message": "未查询到该车牌的备案记录"
+            }
+            
+        details = plate_lookup.get(plate_no_clean, {
+            "company_name": "未知企业",
+            "phone": "-",
+            "address": "-",
+            "transport_type": None
+        })
+        
+        return {
+            "success": True,
+            "is_filed": True,
+            "plate_no": plate_no_clean,
+            "worksite_name": data.get("worksite_name", "未定名工地"),
+            "company_name": details["company_name"],
+            "phone": details["phone"],
+            "address": details["address"],
+            "transport_type": details["transport_type"],
+            "last_updated": data.get("last_updated", "")
+        }
+    else:
+        # 5.2 获取全量已备案车辆库
+        all_filed_list = []
+        for v in vehicles:
+            v_upper = v.upper()
+            details = plate_lookup.get(v_upper, {
+                "company_name": "未知企业",
+                "phone": "-",
+                "address": "-",
+                "transport_type": None
+            })
+            all_filed_list.append({
+                "plate_no": v_upper,
+                "company_name": details["company_name"],
+                "phone": details["phone"],
+                "address": details["address"],
+                "transport_type": details["transport_type"]
+            })
+            
+        return {
+            "success": True,
+            "worksite_name": data.get("worksite_name", "未定名工地"),
+            "total_vehicles": len(all_filed_list),
+            "last_updated": data.get("last_updated", ""),
+            "vehicles": all_filed_list
+        }
+
+
 @app.post("/api/waybills")
 async def query_waybills(payload: WaybillQueryRequest):
     """
@@ -755,6 +915,55 @@ async def save_system_config(payload: SystemConfigPayload):
         return {"success": True}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"保存系统配置失败: {e}")
+
+
+@app.get("/api/admin/public-api-config")
+async def get_public_api_config():
+    """
+    获取外部查询接口的配置信息 (是否启用、当前密钥)
+    """
+    if not os.path.exists(CONFIG_FILE):
+        return {
+            "success": True,
+            "public_api_enabled": True,
+            "public_api_key": ""
+        }
+    try:
+        with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+            config = json.load(f)
+        return {
+            "success": True,
+            "public_api_enabled": config.get("public_api_enabled", True),
+            "public_api_key": config.get("public_api_key", "")
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"读取外部 API 配置失败: {e}"
+        )
+
+
+@app.post("/api/admin/public-api-config")
+async def save_public_api_config(payload: PublicApiConfigPayload):
+    """
+    保存外部查询接口的配置信息
+    """
+    try:
+        config = {}
+        if os.path.exists(CONFIG_FILE):
+            with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+                config = json.load(f)
+        config["public_api_enabled"] = payload.public_api_enabled
+        config["public_api_key"] = payload.public_api_key.strip()
+        with open(CONFIG_FILE, "w", encoding="utf-8") as f:
+            json.dump(config, f, ensure_ascii=False, indent=2)
+        return {"success": True}
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"保存外部 API 配置失败: {e}"
+        )
+
 
 from fastapi import UploadFile, File
 
