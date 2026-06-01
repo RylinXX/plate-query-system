@@ -25,6 +25,8 @@ let qrTemplates = {
 const QR_STORAGE_KEY = "PLATE_QUERY_QR_HELPER_DATA";
 let activeQrVehiclePlate = null;
 let activeQrType = null;
+let activeCustomConfirmResolve = null;
+let activeCustomConfirmCleanUp = null;
 
 function $(id) {
     return document.getElementById(id);
@@ -1107,6 +1109,9 @@ window.openQrCodeModal = async function(plate, type) {
         setDisplay(dom.qrCodeImageFallback, "block");
     }
 
+    if (dom.confirmQrScannedBtn) {
+        dom.confirmQrScannedBtn.disabled = false;
+    }
     dom.qrCodeModal.classList.add("active");
 };
 
@@ -1115,12 +1120,30 @@ function closeAllModals() {
     if (dom.batchAddModal) dom.batchAddModal.classList.remove("active");
     if (dom.editQrModal) dom.editQrModal.classList.remove("active");
     if (dom.customConfirmModal) dom.customConfirmModal.classList.remove("active");
+    
+    // Resolve any pending confirm dialog
+    if (activeCustomConfirmResolve) {
+        activeCustomConfirmResolve(false);
+        activeCustomConfirmResolve = null;
+    }
+    if (activeCustomConfirmCleanUp) {
+        activeCustomConfirmCleanUp();
+    }
+    
     activeQrVehiclePlate = null;
     activeQrType = null;
 }
 
 function showCustomConfirm(title, message) {
+    if (activeCustomConfirmResolve) {
+        activeCustomConfirmResolve(false);
+    }
+    if (activeCustomConfirmCleanUp) {
+        activeCustomConfirmCleanUp();
+    }
     return new Promise((resolve) => {
+        activeCustomConfirmResolve = resolve;
+        
         const modal = dom.customConfirmModal;
         const titleEl = dom.customConfirmTitle;
         const messageEl = dom.customConfirmMessage;
@@ -1130,6 +1153,7 @@ function showCustomConfirm(title, message) {
 
         if (!modal || !messageEl) {
             resolve(confirm(message));
+            activeCustomConfirmResolve = null;
             return;
         }
 
@@ -1143,7 +1167,10 @@ function showCustomConfirm(title, message) {
             closeBtn.removeEventListener("click", onCancel);
             cancelBtn.removeEventListener("click", onCancel);
             confirmBtn.removeEventListener("click", onConfirm);
+            activeCustomConfirmResolve = null;
+            activeCustomConfirmCleanUp = null;
         };
+        activeCustomConfirmCleanUp = cleanUp;
 
         const onCancel = () => {
             cleanUp();
@@ -1198,11 +1225,16 @@ async function checkWaybillStatus(plate, type, stage) {
     };
 
     try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 seconds timeout
+        
         const response = await fetch(`${BACKEND_URL}/api/waybills`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload)
+            body: JSON.stringify(payload),
+            signal: controller.signal
         });
+        clearTimeout(timeoutId);
 
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}`);
@@ -1274,7 +1306,8 @@ async function checkWaybillStatus(plate, type, stage) {
         }
     } catch (err) {
         console.error("运单状态校验请求出错:", err);
-        return { success: false, reason: "api_error", message: err.message };
+        const errMsg = err.name === "AbortError" ? "请求超时" : err.message;
+        return { success: false, reason: "api_error", message: errMsg };
     }
 }
 
@@ -1329,10 +1362,13 @@ async function processQrScannedConfirm() {
             }
             
             localStorage.setItem(QR_STORAGE_KEY, JSON.stringify(qrVehiclesList));
+            closeAllModals(); // Close modal instantly for snappy UX
+            
             await saveQrConfigToServer();
             renderQrGrid();
+        } else {
+            closeAllModals();
         }
-        closeAllModals();
     } else {
         confirmBtn.disabled = false;
         confirmBtn.innerHTML = originalText;
