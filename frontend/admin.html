@@ -699,6 +699,25 @@
         </div>
     </div>
 
+    <!-- 自定义确认警告弹窗 -->
+    <div class="modal-overlay" id="customConfirmModal">
+        <div class="modal-container" style="max-width: 440px; border-color: rgba(239, 68, 68, 0.25);">
+            <div class="modal-header" style="border-bottom-color: rgba(239, 68, 68, 0.15);">
+                <h3 class="modal-title" id="customConfirmTitle" style="color: #f87171; display: flex; align-items: center; gap: 8px;">
+                    <i class="fa-solid fa-triangle-exclamation animate-pulse"></i> 校验警告
+                </h3>
+                <button class="modal-close" id="closeCustomConfirmModalBtn"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body" style="align-items: stretch; text-align: left; padding: 20px 24px; gap: 12px;">
+                <p id="customConfirmMessage" style="font-size: 14px; line-height: 1.6; color: var(--text-primary); white-space: pre-wrap; margin: 0;"></p>
+            </div>
+            <div class="modal-footer" style="gap: 12px; border-top-color: rgba(255, 255, 255, 0.05);">
+                <button class="btn btn-secondary" id="cancelCustomConfirmBtn" style="padding: 8px 18px;">否</button>
+                <button class="btn btn-primary" id="confirmCustomConfirmBtn" style="padding: 8px 18px; background: linear-gradient(180deg, #ef4444 0%, #b91c1c 100%); border-color: rgba(239, 68, 68, 0.3);">是</button>
+            </div>
+        </div>
+    </div>
+
     <!-- 外部 html2pdf.js CDN 资源 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="admin-runtime.js"></script>

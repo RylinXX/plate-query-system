@@ -121,6 +121,14 @@ function initDom() {
         qrCodeImageFallback: $("qrCodeImageFallback"),
         qrCodePlateDisplay: $("qrCodePlateDisplay"),
 
+        // Custom Confirm Modal
+        customConfirmModal: $("customConfirmModal"),
+        closeCustomConfirmModalBtn: $("closeCustomConfirmModalBtn"),
+        cancelCustomConfirmBtn: $("cancelCustomConfirmBtn"),
+        confirmCustomConfirmBtn: $("confirmCustomConfirmBtn"),
+        customConfirmTitle: $("customConfirmTitle"),
+        customConfirmMessage: $("customConfirmMessage"),
+
         // Batch Add Modal
         batchAddModal: $("batchAddModal"),
         closeBatchAddModalBtn: $("closeBatchAddModalBtn"),
@@ -1055,7 +1063,7 @@ window.openQrCodeModal = async function(plate, type) {
         } else {
             warnMsg = `⚠️ 运单校验未通过。是否仍要强行查看二维码？`;
         }
-        proceed = confirm(warnMsg);
+        proceed = await showCustomConfirm("校验警告", warnMsg);
     }
 
     if (!proceed) return;
@@ -1106,8 +1114,53 @@ function closeAllModals() {
     if (dom.qrCodeModal) dom.qrCodeModal.classList.remove("active");
     if (dom.batchAddModal) dom.batchAddModal.classList.remove("active");
     if (dom.editQrModal) dom.editQrModal.classList.remove("active");
+    if (dom.customConfirmModal) dom.customConfirmModal.classList.remove("active");
     activeQrVehiclePlate = null;
     activeQrType = null;
+}
+
+function showCustomConfirm(title, message) {
+    return new Promise((resolve) => {
+        const modal = dom.customConfirmModal;
+        const titleEl = dom.customConfirmTitle;
+        const messageEl = dom.customConfirmMessage;
+        const closeBtn = dom.closeCustomConfirmModalBtn;
+        const cancelBtn = dom.cancelCustomConfirmBtn;
+        const confirmBtn = dom.confirmCustomConfirmBtn;
+
+        if (!modal || !messageEl) {
+            resolve(confirm(message));
+            return;
+        }
+
+        if (titleEl) {
+            titleEl.innerHTML = `<i class="fa-solid fa-triangle-exclamation animate-pulse"></i> ${escapeHtml(title)}`;
+        }
+        messageEl.textContent = message;
+
+        const cleanUp = () => {
+            modal.classList.remove("active");
+            closeBtn.removeEventListener("click", onCancel);
+            cancelBtn.removeEventListener("click", onCancel);
+            confirmBtn.removeEventListener("click", onConfirm);
+        };
+
+        const onCancel = () => {
+            cleanUp();
+            resolve(false);
+        };
+
+        const onConfirm = () => {
+            cleanUp();
+            resolve(true);
+        };
+
+        closeBtn.addEventListener("click", onCancel);
+        cancelBtn.addEventListener("click", onCancel);
+        confirmBtn.addEventListener("click", onConfirm);
+
+        modal.classList.add("active");
+    });
 }
 
 function getQueryDateRange() {
@@ -1254,7 +1307,7 @@ async function processQrScannedConfirm() {
         } else {
             warnMsg = `⚠️ 运单校验未通过。是否仍要强行确认？`;
         }
-        proceed = confirm(warnMsg);
+        proceed = await showCustomConfirm("校验警告", warnMsg);
     }
 
     if (proceed) {
