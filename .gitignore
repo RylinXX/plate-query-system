@@ -1,22 +1,14 @@
-# 虚拟环境排除
+# 虚拟环境与运行时文件
 backend/venv/
-
-# Python 编译缓存排除
 **/__pycache__/
-*.pyc
-
-# 测试缓存排除
-.pytest_cache/
-.pytest_cache/
-
-# 本地数据持久化文件排除 (日常比对使用，无需纳入 Git)
-backend/data.json
-
-# 本地调试和敏感配置排除
+**/*.pyc
 backend/config.json
-backend/sync.log
+backend/data.json
 backend/debug_response.json
 backend/ocr_response.log
 backend/pending_filing.json
+backend/qr_data.json
 
-
+# 其它排除
+.pytest_cache/
+backend/sync.log

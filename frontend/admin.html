@@ -280,14 +280,14 @@
 
         <!-- 导航 Tab 切换器 -->
         <div class="tab-nav" style="margin-bottom: 24px;">
-            <button class="tab-btn active" id="tabOcrBtn">
-                <i class="fa-solid fa-file-invoice"></i> 准运证审核
+            <button class="tab-btn active" id="tabQrBtn">
+                <i class="fa-solid fa-qrcode"></i> 扫码助手
             </button>
             <button class="tab-btn" id="tabWaybillBtn">
                 <i class="fa-solid fa-truck-moving"></i> 运单监控
             </button>
-            <button class="tab-btn" id="tabQrBtn">
-                <i class="fa-solid fa-qrcode"></i> 扫码助手
+            <button class="tab-btn" id="tabOcrBtn">
+                <i class="fa-solid fa-file-invoice"></i> 准运证审核
             </button>
             <button class="tab-btn" id="tabConfigBtn">
                 <i class="fa-solid fa-sliders"></i> 接口配置
@@ -295,7 +295,7 @@
         </div>
 
         <!-- 准运证审核页面 (ocrPage) -->
-        <div id="ocrPage" class="admin-vertical-layout">
+        <div id="ocrPage" class="admin-vertical-layout" style="display: none;">
             <!-- 上传准运证卡片 -->
             <section class="glass-panel">
                 <h3 style="font-size: 16px; font-weight: 700; margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
@@ -474,7 +474,7 @@
         </div>
 
         <!-- 扫码助手页面 (qrPage) -->
-        <div id="qrPage" style="display: none;">
+        <div id="qrPage">
             <!-- 统计 & 全局控制面板 -->
             <section class="glass-panel qr-control-panel" style="margin-bottom: 24px;">
                 <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; margin-bottom: 0; border-bottom: none; padding-bottom: 0;">

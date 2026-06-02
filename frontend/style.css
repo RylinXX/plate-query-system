@@ -1458,16 +1458,24 @@ body {
     }
 
     .tab-nav {
+        display: flex;
+        overflow-x: auto;
+        white-space: nowrap;
+        -webkit-overflow-scrolling: touch;
         gap: 6px;
         margin-bottom: 18px;
         border-bottom: 1.5px solid rgba(142, 170, 201, 0.12);
         padding-bottom: 6px;
     }
+    
+    .tab-nav::-webkit-scrollbar {
+        display: none;
+    }
 
     .tab-btn {
-        flex: 1;
+        flex-shrink: 0;
         font-size: 13px;
-        padding: 8px 6px;
+        padding: 8px 12px;
         gap: 4px;
         justify-content: center;
         white-space: nowrap;
