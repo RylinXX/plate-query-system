@@ -485,6 +485,9 @@
                         <p class="panel-subtitle">循环扫码流程：扫码工地（工地查看按钮关闭），等扫码土点（土点查看按钮关闭，打开工地查看按钮）</p>
                     </div>
                     <div class="sync-control">
+                        <button class="btn btn-primary btn-small" id="batchScanBtn">
+                            <i class="fa-solid fa-clock-rotate-left"></i> 批量排队扫码
+                        </button>
                         <button class="btn btn-secondary btn-small" id="batchAddBtn">
                             <i class="fa-solid fa-plus"></i> 批量添加车辆
                         </button>
@@ -499,6 +502,29 @@
             <section id="qrVehiclesGrid" class="qr-vehicles-grid">
                 <!-- 由 JS 动态渲染 -->
             </section>
+
+            <!-- 扫码队列状态面板 -->
+            <div id="qrQueuePanel" class="glass-panel queue-status-panel" style="display: none; margin-top: 24px; padding: 18px 24px;">
+                <div class="queue-header">
+                    <div class="queue-title">
+                        <i class="fa-solid fa-circle-notch fa-spin text-cyan" id="queueStatusSpinner"></i>
+                        <span id="queueTitleText">后台扫码排队队列 - 运行中</span>
+                    </div>
+                    <div class="queue-actions">
+                        <button class="btn btn-secondary btn-mini" id="pauseQueueBtn" title="暂停/继续">
+                            <i class="fa-solid fa-pause"></i> 暂停
+                        </button>
+                        <button class="btn btn-danger btn-mini" id="clearQueueBtn" style="padding: 4px 8px;" title="清空全部排队">
+                            <i class="fa-solid fa-trash-can"></i> 取消队列
+                        </button>
+                    </div>
+                </div>
+                <div class="queue-tasks-wrapper">
+                    <div class="queue-tasks-list" id="queueTasksList">
+                        <!-- 动态渲染队列中的车辆 -->
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- 系统接口参数配置页面 (configPage) -->
@@ -691,6 +717,64 @@
             <div class="modal-footer">
                 <button class="btn btn-secondary" id="cancelBatchAddModalBtn">取消</button>
                 <button class="btn btn-primary" id="confirmBatchAddBtn">确认添加</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 批量排队扫码配置弹窗 -->
+    <div class="modal-overlay" id="batchScanModal">
+        <div class="modal-container" style="max-width: 460px;">
+            <div class="modal-header">
+                <h3 class="modal-title"><i class="fa-solid fa-clock-rotate-left"></i> 批量延迟扫码配置</h3>
+                <button class="modal-close" id="closeBatchScanModalBtn"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body" style="align-items: stretch; text-align: left; gap: 16px;">
+                <p style="font-size: 13px; color: var(--text-secondary); margin: 0; line-height: 1.5;">
+                    配置后系统将过滤出当前<b>已启用</b>的车辆，在后台按照<b>随机错开时间</b>依次进行扫码确认，以防止大批量请求过于集中触发平台风控。
+                </p>
+                
+                <div class="form-group">
+                    <label class="form-label">1. 选择批量扫码阶段</label>
+                    <select id="batchScanTypeSelect" class="form-input select-style">
+                        <option value="auto" selected>混合模式 (自动匹配每台车当前状态)</option>
+                        <option value="worksite">仅限：扫工地 (批量扫等待扫工地车辆)</option>
+                        <option value="dump">仅限：扫土点 (批量扫等待扫土点车辆)</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">2. 防风控延迟时间范围 (分钟/每台车)</label>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <input type="number" id="batchScanDelayMin" class="form-input" value="2" min="1" max="60" style="text-align: center;">
+                        <span>至</span>
+                        <input type="number" id="batchScanDelayMax" class="form-input" value="5" min="2" max="120" style="text-align: center;">
+                        <span style="white-space: nowrap;">分钟</span>
+                    </div>
+                    <span class="form-help">每台车在队列中启动前，都将在上台车基础上额外等待此范围内的随机时间。</span>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">3. 运单校验与确认方式</label>
+                    <select id="batchScanModeSelect" class="form-input select-style">
+                        <option value="verify" selected>仅校验模式 (有运单才确认，无运单重试)</option>
+                        <option value="force">强行确认模式 (时间到直接通过，不校验运单)</option>
+                    </select>
+                </div>
+                
+                <div class="form-group" id="batchScanTransitTimeGroup">
+                    <label class="form-label" for="batchScanTransitTime">4. 工地到土点路程在途时间 (分钟)</label>
+                    <input type="number" id="batchScanTransitTime" class="form-input" value="30" min="0" max="300" style="text-align: center;">
+                    <span class="form-help">仅对扫土点生效：系统将确保车辆扫土点的时间距离上次扫工地时间不低于此路程限制，不足将自动排队补满。输入 0 表示不在途等待。</span>
+                </div>
+                
+                <div style="padding: 10px 14px; background: rgba(121, 169, 216, 0.08); border-radius: 6px; border: 1px solid rgba(121, 169, 216, 0.15); font-size: 13px; color: var(--text-primary);">
+                    <i class="fa-solid fa-circle-info" style="color: var(--neon-cyan); margin-right: 4px;"></i>
+                    当前已启用可用车辆：<strong id="batchScanActiveCount" style="color: var(--neon-cyan);">0</strong> 台
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="cancelBatchScanModalBtn">取消</button>
+                <button class="btn btn-primary" id="confirmBatchScanBtn">开始批量排队</button>
             </div>
         </div>
     </div>

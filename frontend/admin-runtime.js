@@ -28,6 +28,14 @@ let activeQrType = null;
 let activeCustomConfirmResolve = null;
 let activeCustomConfirmCleanUp = null;
 
+// QR Batch Scan Queue variables
+const QR_QUEUE_STORAGE_KEY = "PLATE_QUERY_QR_QUEUE_DATA";
+const QR_QUEUE_ACTIVE_STORAGE_KEY = "PLATE_QUERY_QR_QUEUE_ACTIVE";
+let qrScanQueue = [];
+let qrScanQueueActive = false;
+let qrScanQueueTimer = null;
+let queueVerifyTickCount = 0;
+
 function $(id) {
     return document.getElementById(id);
 }
@@ -170,7 +178,29 @@ function initDom() {
         publicApiUrlDisplay: $("publicApiUrlDisplay"),
         copyPublicApiUrlBtn: $("copyPublicApiUrlBtn"),
         generateApiKeyBtn: $("generateApiKeyBtn"),
-        savePublicApiConfigBtn: $("savePublicApiConfigBtn")
+        savePublicApiConfigBtn: $("savePublicApiConfigBtn"),
+
+        // QR Batch Scan Queue
+        batchScanBtn: $("batchScanBtn"),
+        qrQueuePanel: $("qrQueuePanel"),
+        queueStatusSpinner: $("queueStatusSpinner"),
+        queueTitleText: $("queueTitleText"),
+        pauseQueueBtn: $("pauseQueueBtn"),
+        clearQueueBtn: $("clearQueueBtn"),
+        queueTasksList: $("queueTasksList"),
+
+        // Batch Scan Modal
+        batchScanModal: $("batchScanModal"),
+        closeBatchScanModalBtn: $("closeBatchScanModalBtn"),
+        cancelBatchScanModalBtn: $("cancelBatchScanModalBtn"),
+        confirmBatchScanBtn: $("confirmBatchScanBtn"),
+        batchScanTypeSelect: $("batchScanTypeSelect"),
+        batchScanDelayMin: $("batchScanDelayMin"),
+        batchScanDelayMax: $("batchScanDelayMax"),
+        batchScanModeSelect: $("batchScanModeSelect"),
+        batchScanActiveCount: $("batchScanActiveCount"),
+        batchScanTransitTime: $("batchScanTransitTime"),
+        batchScanTransitTimeGroup: $("batchScanTransitTimeGroup")
     };
 }
 
@@ -1033,6 +1063,10 @@ function renderQrGrid() {
 
         const hasQr = !!(vehicle.qrImage || vehicle.worksiteQrImage || vehicle.dumpQrImage);
 
+        // Check queue status
+        const queueTask = qrScanQueue.find(t => t.plate === vehicle.plate);
+        const isInQueue = !!queueTask;
+
         if (!isEnabled) {
             worksiteBtnClass += " btn-qr-disabled";
             worksiteBtnText = `<i class="fa-solid fa-ban"></i> 队列已关`;
@@ -1067,19 +1101,56 @@ function renderQrGrid() {
             }
         }
 
+        let queueBadgeHtml = "";
+        let isCardDisabledInQueue = false;
+        
+        if (isInQueue && isEnabled) {
+            if (queueTask.status === "processing") {
+                // Active Scan state: Card shines, normal buttons enabled, add a blinking active scan badge
+                queueBadgeHtml = `
+                    <div class="card-active-scan-badge" style="position: absolute; bottom: 8px; right: 12px; font-size: 11px; color: #4ade80; background: rgba(31, 143, 106, 0.15); border: 1px solid rgba(31, 143, 106, 0.3); border-radius: 4px; padding: 2px 6px; z-index: 5; display: flex; align-items: center; gap: 4px; animation: pulseGlow 1s infinite alternate ease-in-out;">
+                        <i class="fa-solid fa-circle-play"></i> 请司机扫码
+                    </div>
+                `;
+            } else {
+                // Waiting/Pending state: Card is greyed out with absolute cover overlay
+                isCardDisabledInQueue = true;
+                cardClass += " in-queue-card";
+                worksiteBtnAttr = "disabled";
+                dumpBtnAttr = "disabled";
+                
+                let timeStr = "排队候补中";
+                if (queueTask.status === "waiting") {
+                    const minutes = Math.floor(queueTask.remainingSeconds / 60);
+                    const seconds = queueTask.remainingSeconds % 60;
+                    timeStr = `${minutes}分${seconds}秒`;
+                }
+                
+                queueBadgeHtml = `
+                    <div class="card-queue-badge">
+                        <div class="badge-title">
+                            <i class="fa-solid fa-clock animate-pulse"></i> 排队等待中
+                        </div>
+                        <div class="badge-time">${timeStr}</div>
+                    </div>
+                `;
+            }
+        }
+
         const worksiteTimeStr = vehicle.worksiteTime ? escapeHtml(vehicle.worksiteTime) : "--:--:--";
         const dumpTimeStr = vehicle.dumpTime ? escapeHtml(vehicle.dumpTime) : "--:--:--";
 
         return `
-            <div class="${cardClass}" data-plate="${escapeHtml(vehicle.plate)}">
+            <div class="${cardClass}" data-plate="${escapeHtml(vehicle.plate)}" style="position: relative;">
+                ${queueBadgeHtml}
                 <div class="qr-card-header">
                     <span class="qr-plate ${plateClass}">${escapeHtml(vehicle.plate)}</span>
                     <div style="display: flex; gap: 6px; align-items: center;">
                         <label class="switch-toggle" title="启用/禁用车辆">
-                            <input type="checkbox" ${isEnabled ? 'checked' : ''} onchange="toggleVehicleEnabled('${escapeHtml(vehicle.plate)}', this.checked)">
+                            <input type="checkbox" ${isEnabled ? 'checked' : ''} ${isCardDisabledInQueue ? 'disabled' : ''} onchange="toggleVehicleEnabled('${escapeHtml(vehicle.plate)}', this.checked)">
                             <span class="switch-slider"></span>
                         </label>
-                        <button class="qr-edit-btn" onclick="openEditQrModal('${escapeHtml(vehicle.plate)}')" title="编辑二维码">
+                        <button class="qr-edit-btn" onclick="openEditQrModal('${escapeHtml(vehicle.plate)}')" ${isCardDisabledInQueue ? 'disabled' : ''} title="编辑二维码">
                             <i class="fa-solid fa-pen-to-square"></i>
                         </button>
                     </div>
@@ -1122,43 +1193,48 @@ window.deleteQrVehicle = function(plate) {
     renderQrGrid();
 };
 
-window.openQrCodeModal = async function(plate, type) {
-    const card = document.querySelector(`.qr-vehicle-card[data-plate="${plate}"]`);
-    let targetBtn = null;
-    let originalHtml = "";
-    if (card) {
-        targetBtn = card.querySelector(type === "worksite" ? ".btn-qr-worksite" : ".btn-qr-dump");
-        if (targetBtn) {
-            originalHtml = targetBtn.innerHTML;
-            targetBtn.disabled = true;
-            targetBtn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> 校验中`;
-        }
-    }
-
-    const validation = await checkWaybillStatus(plate, type, "open");
-    
-    if (targetBtn) {
-        targetBtn.disabled = false;
-        targetBtn.innerHTML = originalHtml;
-    }
-
+window.openQrCodeModal = async function(plate, type, forceOpen = false) {
     let proceed = false;
-    if (validation.success) {
+    
+    if (forceOpen) {
         proceed = true;
     } else {
-        let warnMsg = "";
-        if (validation.reason === "already_in_transit") {
-            warnMsg = `⚠️ 警告：检测到该车辆当前已有一个【运输中】状态的运单！\n\n这说明该车辆已在运输中，无需重复进行“扫工地”登记。是否仍要强行查看二维码？`;
-        } else if (validation.reason === "no_active_waybill") {
-            warnMsg = `⚠️ 警告：检测到该车辆目前没有【运输中】状态的运单！\n\n这说明该车辆尚未开始本次运输，无法进行“扫土点”登记。是否仍要强行查看二维码？`;
-        } else if (validation.reason === "api_error") {
-            warnMsg = `⚠️ 网络或系统校验失败：${validation.message || "请求超时"}\n\n当前无法校验该车在官方运单中枢的最新状态。是否仍要强行查看二维码？`;
-        } else if (validation.reason === "missing_token") {
-            warnMsg = `⚠️ 系统接口未就绪：authtoken 缺失，无法与官方运单中枢进行数据校验！是否仍要强行查看二维码？`;
-        } else {
-            warnMsg = `⚠️ 运单校验未通过。是否仍要强行查看二维码？`;
+        const card = document.querySelector(`.qr-vehicle-card[data-plate="${plate}"]`);
+        let targetBtn = null;
+        let originalHtml = "";
+        if (card) {
+            targetBtn = card.querySelector(type === "worksite" ? ".btn-qr-worksite" : ".btn-qr-dump");
+            if (targetBtn) {
+                originalHtml = targetBtn.innerHTML;
+                targetBtn.disabled = true;
+                targetBtn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> 校验中`;
+            }
         }
-        proceed = await showCustomConfirm("校验警告", warnMsg);
+
+        const validation = await checkWaybillStatus(plate, type, "open");
+        
+        if (targetBtn) {
+            targetBtn.disabled = false;
+            targetBtn.innerHTML = originalHtml;
+        }
+
+        if (validation.success) {
+            proceed = true;
+        } else {
+            let warnMsg = "";
+            if (validation.reason === "already_in_transit") {
+                warnMsg = `⚠️ 警告：检测到该车辆当前已有一个【运输中】状态的运单！\n\n这说明该车辆已在运输中，无需重复进行“扫工地”登记。是否仍要强行查看二维码？`;
+            } else if (validation.reason === "no_active_waybill") {
+                warnMsg = `⚠️ 警告：检测到该车辆目前没有【运输中】状态的运单！\n\n这说明该车辆尚未开始本次运输，无法进行“扫土点”登记。是否仍要强行查看二维码？`;
+            } else if (validation.reason === "api_error") {
+                warnMsg = `⚠️ 网络或系统校验失败：${validation.message || "请求超时"}\n\n当前无法校验该车在官方运单中枢的最新状态。是否仍要强行查看二维码？`;
+            } else if (validation.reason === "missing_token") {
+                warnMsg = `⚠️ 系统接口未就绪：authtoken 缺失，无法与官方运单中枢进行数据校验！是否仍要强行查看二维码？`;
+            } else {
+                warnMsg = `⚠️ 运单校验未通过。是否仍要强行查看二维码？`;
+            }
+            proceed = await showCustomConfirm("校验警告", warnMsg);
+        }
     }
 
     if (!proceed) return;
@@ -1213,6 +1289,7 @@ function closeAllModals() {
     if (dom.batchAddModal) dom.batchAddModal.classList.remove("active");
     if (dom.editQrModal) dom.editQrModal.classList.remove("active");
     if (dom.customConfirmModal) dom.customConfirmModal.classList.remove("active");
+    if (dom.batchScanModal) dom.batchScanModal.classList.remove("active");
     
     // Resolve any pending confirm dialog
     if (activeCustomConfirmResolve) {
@@ -1225,6 +1302,518 @@ function closeAllModals() {
     
     activeQrVehiclePlate = null;
     activeQrType = null;
+}
+
+// --- QR Batch Scan Queue Implementation ---
+
+function initQueue() {
+    // Load from localStorage
+    const storedQueue = localStorage.getItem(QR_QUEUE_STORAGE_KEY);
+    const storedActive = localStorage.getItem(QR_QUEUE_ACTIVE_STORAGE_KEY);
+    
+    if (storedQueue) {
+        try {
+            qrScanQueue = JSON.parse(storedQueue);
+            
+            // 自动防御性清洗脏数据：确保只有队首任务能处于 waiting 或 processing，后车一律重置为 pending_queue
+            let hasDirtyData = false;
+            for (let i = 1; i < qrScanQueue.length; i++) {
+                if (qrScanQueue[i].status !== "pending_queue") {
+                    qrScanQueue[i].status = "pending_queue";
+                    qrScanQueue[i].remainingSeconds = 0;
+                    qrScanQueue[i].totalSeconds = 0;
+                    qrScanQueue[i].message = "排队中，等待前车完成";
+                    hasDirtyData = true;
+                }
+            }
+            if (hasDirtyData) {
+                setTimeout(() => saveQueueState(), 0);
+            }
+        } catch (e) {
+            qrScanQueue = [];
+        }
+    }
+    
+    qrScanQueueActive = storedActive === "true";
+    
+    // Resume queue timer if there are items and it was active
+    if (qrScanQueue.length > 0 && qrScanQueueActive) {
+        startQueueTimer();
+        renderQueueStatus();
+    } else if (qrScanQueue.length > 0) {
+        renderQueueStatus();
+    }
+}
+
+function saveQueueState() {
+    localStorage.setItem(QR_QUEUE_STORAGE_KEY, JSON.stringify(qrScanQueue));
+    localStorage.setItem(QR_QUEUE_ACTIVE_STORAGE_KEY, String(qrScanQueueActive));
+}
+
+function startQueueTimer() {
+    if (qrScanQueueTimer) clearInterval(qrScanQueueTimer);
+    qrScanQueueTimer = setInterval(processQueueTick, 1000);
+}
+
+function stopQueueTimer() {
+    if (qrScanQueueTimer) {
+        clearInterval(qrScanQueueTimer);
+        qrScanQueueTimer = null;
+    }
+}
+
+// 解析 "HH:MM:SS" 为今日对应毫秒时间戳
+function timeStrToTodayTimestamp(timeStr) {
+    if (!timeStr) return null;
+    const parts = timeStr.split(":");
+    if (parts.length < 2) return null;
+    
+    const now = new Date();
+    const hh = parseInt(parts[0], 10);
+    const mm = parseInt(parts[1], 10);
+    const ss = parts.length > 2 ? parseInt(parts[2], 10) : 0;
+    
+    const target = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hh, mm, ss);
+    return target.getTime();
+}
+
+window.openBatchScanModal = function() {
+    closeAllModals();
+    if (!dom.batchScanModal) return;
+    
+    // Count active enabled vehicles
+    const activeVehicles = qrVehiclesList.filter(v => v.enabled !== false);
+    dom.batchScanActiveCount.textContent = activeVehicles.length;
+    
+    // 动态联动：如果是仅扫工地，不需要路程在途等待
+    const updateTransitVisibility = () => {
+        if (dom.batchScanTransitTimeGroup && dom.batchScanTypeSelect) {
+            if (dom.batchScanTypeSelect.value === "worksite") {
+                setDisplay(dom.batchScanTransitTimeGroup, "none");
+            } else {
+                setDisplay(dom.batchScanTransitTimeGroup, "block");
+            }
+        }
+    };
+    
+    if (dom.batchScanTypeSelect) {
+        dom.batchScanTypeSelect.onchange = updateTransitVisibility;
+        updateTransitVisibility();
+    }
+    
+    dom.batchScanModal.classList.add("active");
+};
+
+async function handleBatchScanSubmit() {
+    const scanType = dom.batchScanTypeSelect.value; // "auto", "worksite", "dump"
+    const delayMin = parseInt(dom.batchScanDelayMin.value) || 2;
+    const delayMax = parseInt(dom.batchScanDelayMax.value) || 5;
+    const mode = dom.batchScanModeSelect.value; // "verify", "force"
+    const transitTimeInput = dom.batchScanTransitTime ? parseInt(dom.batchScanTransitTime.value) : 30;
+    const transitMinutes = isNaN(transitTimeInput) ? 30 : transitTimeInput;
+    
+    if (delayMin < 0 || delayMax < delayMin) {
+        alert("请输入正确的延迟时间范围。");
+        return;
+    }
+    
+    // Filter vehicles based on selected phase and enabled status
+    const enabledVehicles = qrVehiclesList.filter(v => v.enabled !== false);
+    let targetVehicles = [];
+    
+    enabledVehicles.forEach(vehicle => {
+        let matchedType = null;
+        if (scanType === "auto") {
+            matchedType = vehicle.status === 0 ? "worksite" : "dump";
+        } else if (scanType === "worksite" && vehicle.status === 0) {
+            matchedType = "worksite";
+        } else if (scanType === "dump" && vehicle.status === 1) {
+            matchedType = "dump";
+        }
+        
+        if (matchedType) {
+            targetVehicles.push({
+                plate: vehicle.plate,
+                type: matchedType
+            });
+        }
+    });
+    
+    if (targetVehicles.length === 0) {
+        alert("未找到符合所选扫码阶段的可用车辆（请确保车辆已开启且处于等待状态）。");
+        return;
+    }
+    
+    // Check if queue already has running tasks
+    if (qrScanQueue.length > 0) {
+        if (!confirm("当前排队队列不为空，重新启动批量排队将清空现有队列，是否继续？")) {
+            return;
+        }
+    }
+    
+    // Build queue tasks with serial layout
+    qrScanQueue = [];
+    
+    targetVehicles.forEach((v, index) => {
+        if (index === 0) {
+            let transitRemainingSeconds = 0;
+            if (v.type === "dump") {
+                const vehicle = qrVehiclesList.find(c => c.plate === v.plate);
+                if (vehicle && vehicle.worksiteTime) {
+                    const worksiteTs = timeStrToTodayTimestamp(vehicle.worksiteTime);
+                    if (worksiteTs) {
+                        const transitDurationMs = transitMinutes * 60 * 1000;
+                        const nowTs = Date.now();
+                        const targetTs = worksiteTs + transitDurationMs;
+                        transitRemainingSeconds = Math.max(0, Math.floor((targetTs - nowTs) / 1000));
+                    }
+                }
+            }
+            
+            const initialDelay = transitRemainingSeconds; // 第一台车免防风控等待，只受在途时间约束
+            const isProcessing = initialDelay <= 0;
+            
+            qrScanQueue.push({
+                plate: v.plate,
+                type: v.type,
+                targetStatus: v.type === "worksite" ? 1 : 0,
+                remainingSeconds: initialDelay,
+                totalSeconds: initialDelay,
+                status: isProcessing ? "processing" : "waiting",
+                retryCount: 0,
+                force: false,
+                scanMode: mode,
+                message: isProcessing ? "⏰ 时间已到，已放行！请司机尽快扫码！" : "等待在途时间..."
+            });
+        } else {
+            qrScanQueue.push({
+                plate: v.plate,
+                type: v.type,
+                targetStatus: v.type === "worksite" ? 1 : 0,
+                remainingSeconds: 0,
+                totalSeconds: 0,
+                status: "pending_queue",
+                retryCount: 0,
+                force: false,
+                scanMode: mode,
+                message: "排队中，等待前车完成"
+            });
+        }
+    });
+    
+    qrScanQueueActive = true;
+    saveQueueState();
+    startQueueTimer();
+    renderQueueStatus();
+    renderQrGrid(); // Refresh cards to show queue state
+    closeAllModals();
+
+    // 如果队首任务直接是放行状态，立刻自动弹出二维码
+    if (qrScanQueue.length > 0 && qrScanQueue[0].status === "processing") {
+        const firstTask = qrScanQueue[0];
+        setTimeout(() => {
+            window.openQrCodeModal(firstTask.plate, firstTask.type, true);
+            executeQueueTask(firstTask);
+        }, 300);
+    }
+}
+
+function toggleQueuePause() {
+    if (qrScanQueue.length === 0) return;
+    
+    qrScanQueueActive = !qrScanQueueActive;
+    saveQueueState();
+    renderQueueStatus();
+    
+    if (qrScanQueueActive) {
+        startQueueTimer();
+    } else {
+        stopQueueTimer();
+    }
+}
+
+function clearBatchScanQueue(silent = false) {
+    if (!silent && qrScanQueue.length > 0) {
+        if (!confirm("确定要取消全部排队中的车辆并清空扫码队列吗？")) return;
+    }
+    
+    stopQueueTimer();
+    qrScanQueue = [];
+    qrScanQueueActive = false;
+    saveQueueState();
+    renderQueueStatus();
+    renderQrGrid(); // Restore cards normal state
+}
+
+function rescheduleQueueAfterSuccess() {
+    if (qrScanQueue.length === 0) return;
+    
+    const delayMin = dom.batchScanDelayMin ? (parseInt(dom.batchScanDelayMin.value) || 2) : 2;
+    const delayMax = dom.batchScanDelayMax ? (parseInt(dom.batchScanDelayMax.value) || 5) : 5;
+    
+    let accumulatedDelay = 0;
+    let rescheduledCount = 0;
+    
+    for (let i = 0; i < qrScanQueue.length; i++) {
+        const task = qrScanQueue[i];
+        const randomSeconds = Math.floor(Math.random() * (delayMax - delayMin + 1) + delayMin) * 60;
+        accumulatedDelay += randomSeconds;
+        
+        // If remaining time is smaller than the safety accumulated delay window, reschedule it
+        if (task.remainingSeconds < accumulatedDelay) {
+            task.remainingSeconds = accumulatedDelay;
+            task.totalSeconds = Math.max(task.totalSeconds, accumulatedDelay);
+            
+            if (task.status === "processing" || task.status === "retrying") {
+                task.status = "waiting";
+            }
+            task.message = `前车扫码成功，防风控顺延等待中...`;
+            rescheduledCount++;
+        } else {
+            // Keep the larger timer, but accumulate from it for subsequent items
+            accumulatedDelay = task.remainingSeconds;
+        }
+    }
+    
+    if (rescheduledCount > 0) {
+        console.log(`[Queue] Congestion顺延重排成功，顺延了 ${rescheduledCount} 个挂起任务。`);
+    }
+}
+
+async function processQueueTick() {
+    if (!qrScanQueueActive || qrScanQueue.length === 0) return;
+    
+    let hasChanges = false;
+    const task = qrScanQueue[0];
+    
+    if (task.status === "waiting") {
+        task.remainingSeconds--;
+        hasChanges = true;
+        
+        if (task.remainingSeconds <= 0) {
+            task.remainingSeconds = 0;
+            task.status = "processing";
+            task.message = "⏰ 时间已到，已放行！请司机尽快扫码！";
+            queueVerifyTickCount = 0;
+            
+            // 自动弹出该车辆的二维码弹窗
+            setTimeout(() => {
+                window.openQrCodeModal(task.plate, task.type, true);
+            }, 300);
+            
+            // Trigger verification immediately
+            executeQueueTask(task);
+        }
+    } else if (task.status === "processing") {
+        if (task.scanMode === "force") {
+            task.message = "⏰ 请司机扫码，扫码完成后请管理员点击【确认已扫码】";
+        } else {
+            queueVerifyTickCount++;
+            
+            if (queueVerifyTickCount >= 10) {
+                queueVerifyTickCount = 0;
+                executeQueueTask(task);
+            }
+            
+            const secondsToNextCheck = 10 - queueVerifyTickCount;
+            task.message = `⏰ 时间已到，已放行！请司机扫码 (${secondsToNextCheck}秒后自动校验)`;
+        }
+        hasChanges = true;
+    }
+    
+    if (hasChanges) {
+        saveQueueState();
+        renderQueueStatus();
+        renderQrGrid();
+    }
+}
+
+async function executeQueueTask(task) {
+    let proceed = false;
+    
+    if (task.force) {
+        proceed = true;
+    } else {
+        if (task.scanMode === "force") {
+            task.message = "⏰ 请司机扫码，扫码完成后请管理员点击【确认已扫码】";
+            saveQueueState();
+            renderQueueStatus();
+            renderQrGrid();
+            return;
+        } else {
+            // Mode: verify waybill
+            const validation = await checkWaybillStatus(task.plate, task.type, "confirm");
+            if (validation.success) {
+                proceed = true;
+            } else {
+                // Validation failed, keep processing and retry in 10s
+                task.retryCount++;
+                
+                let failReason = "未检测到运单";
+                if (validation.reason === "no_in_transit_waybill") {
+                    failReason = "未检测到运输中运单";
+                } else if (validation.reason === "no_recent_completed_waybill") {
+                    failReason = "未检测到已完成运单";
+                } else if (validation.reason === "api_error") {
+                    failReason = validation.message || "官方接口校验超时";
+                }
+                
+                task.message = `🔍 校验中 (未过: ${failReason}，第${task.retryCount}次尝试)`;
+                saveQueueState();
+                renderQueueStatus();
+                renderQrGrid();
+                return;
+            }
+        }
+    }
+    
+    if (proceed) {
+        // 如果当前打开的二维码弹窗对应的正是此任务车辆，自动关闭它
+        if (activeQrVehiclePlate === task.plate && activeQrType === task.type) {
+            closeAllModals();
+        }
+
+        // Complete the task! Update vehicle status
+        const vehicle = qrVehiclesList.find(v => v.plate === task.plate);
+        if (vehicle) {
+            const now = new Date();
+            const hh = String(now.getHours()).padStart(2, "0");
+            const mm = String(now.getMinutes()).padStart(2, "0");
+            const ss = String(now.getSeconds()).padStart(2, "0");
+            const timeStr = `${hh}:${mm}:${ss}`;
+            vehicle.lastScannedTime = timeStr;
+            
+            if (task.type === "worksite") {
+                vehicle.status = 1;
+                vehicle.worksiteTime = timeStr;
+            } else {
+                vehicle.status = 0;
+                vehicle.dumpTime = timeStr;
+            }
+            
+            // Save vehicle configuration
+            localStorage.setItem(QR_STORAGE_KEY, JSON.stringify(qrVehiclesList));
+            await saveQrConfigToServer();
+        }
+        
+        // Remove task from queue
+        qrScanQueue = qrScanQueue.filter(t => t.plate !== task.plate);
+        
+        // --- Activate the next vehicle in queue ---
+        if (qrScanQueue.length > 0) {
+            const nextTask = qrScanQueue[0];
+            const delayMin = dom.batchScanDelayMin ? (parseInt(dom.batchScanDelayMin.value) || 2) : 2;
+            const delayMax = dom.batchScanDelayMax ? (parseInt(dom.batchScanDelayMax.value) || 5) : 5;
+            const randomSeconds = Math.floor(Math.random() * (delayMax - delayMin + 1) + delayMin) * 60;
+            
+            const transitTimeInput = dom.batchScanTransitTime ? parseInt(dom.batchScanTransitTime.value) : 30;
+            const transitMinutes = isNaN(transitTimeInput) ? 30 : transitTimeInput;
+            
+            let transitRemainingSeconds = 0;
+            if (nextTask.type === "dump") {
+                const nextVehicle = qrVehiclesList.find(c => c.plate === nextTask.plate);
+                if (nextVehicle && nextVehicle.worksiteTime) {
+                    const worksiteTs = timeStrToTodayTimestamp(nextVehicle.worksiteTime);
+                    if (worksiteTs) {
+                        const transitDurationMs = transitMinutes * 60 * 1000;
+                        const nowTs = Date.now();
+                        const targetTs = worksiteTs + transitDurationMs;
+                        transitRemainingSeconds = Math.max(0, Math.floor((targetTs - nowTs) / 1000));
+                    }
+                }
+            }
+            
+            const nextDelaySeconds = Math.max(randomSeconds, transitRemainingSeconds);
+            nextTask.remainingSeconds = nextDelaySeconds;
+            nextTask.totalSeconds = nextDelaySeconds;
+            nextTask.status = "waiting";
+            nextTask.message = "等待计时...";
+            queueVerifyTickCount = 0;
+        }
+        
+        saveQueueState();
+        renderQueueStatus();
+        renderQrGrid();
+        
+        // If queue became empty, stop everything
+        if (qrScanQueue.length === 0) {
+            clearBatchScanQueue(true);
+        }
+    }
+}
+
+function renderQueueStatus() {
+    if (!dom.qrQueuePanel) return;
+    
+    if (qrScanQueue.length === 0) {
+        setDisplay(dom.qrQueuePanel, "none");
+        return;
+    }
+    
+    setDisplay(dom.qrQueuePanel, "block");
+    
+    if (qrScanQueueActive) {
+        dom.queueStatusSpinner.style.display = "inline-block";
+        dom.queueStatusSpinner.className = "fa-solid fa-circle-notch fa-spin text-cyan";
+        dom.queueTitleText.textContent = `后台扫码排队中 (剩余 ${qrScanQueue.length} 台车待处理)`;
+        dom.pauseQueueBtn.innerHTML = `<i class="fa-solid fa-pause"></i> 暂停队列`;
+        dom.pauseQueueBtn.className = "btn btn-secondary btn-mini";
+    } else {
+        dom.queueStatusSpinner.style.display = "inline-block";
+        dom.queueStatusSpinner.className = "fa-solid fa-circle-pause text-orange";
+        dom.queueTitleText.textContent = `后台扫码排队已暂停 (剩余 ${qrScanQueue.length} 台车)`;
+        dom.pauseQueueBtn.innerHTML = `<i class="fa-solid fa-play"></i> 继续队列`;
+        dom.pauseQueueBtn.className = "btn btn-success btn-mini";
+    }
+    
+    dom.queueTasksList.innerHTML = qrScanQueue.map(task => {
+        let countdownStr = "";
+        let statusText = "排队等待中";
+        let statusClass = "status-waiting";
+        let progressPercent = 0;
+        
+        if (task.status === "pending_queue") {
+            countdownStr = "等待前车";
+            statusText = "排队候补";
+            statusClass = "status-waiting";
+            progressPercent = 100;
+        } else {
+            const minutes = Math.floor(task.remainingSeconds / 60);
+            const seconds = task.remainingSeconds % 60;
+            countdownStr = `${minutes}分${seconds}秒`;
+            progressPercent = task.totalSeconds > 0 ? (task.remainingSeconds / task.totalSeconds) * 100 : 0;
+            
+            if (task.status === "processing") {
+                statusText = "正在扫码中";
+                statusClass = "status-processing";
+            }
+        }
+        
+        const typeText = task.type === "worksite" ? "扫工地" : "扫土点";
+        
+        return `
+            <div class="queue-task-item ${task.status === 'processing' ? 'active' : ''}">
+                <div class="queue-task-row">
+                    <span class="queue-task-plate">${escapeHtml(task.plate)} <span style="font-weight: normal; font-size: 11px; opacity: 0.7;">(${typeText})</span></span>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <span class="queue-task-status ${statusClass}">${statusText}</span>
+                        <button class="btn-remove-task" onclick="removeTaskFromQueue('${escapeHtml(task.plate)}')" title="移除此车辆排队" style="background: none; border: none; color: #f43f5e; cursor: pointer; padding: 2px; font-size: 14px; display: flex; align-items: center; justify-content: center; transition: color 0.2s;">
+                            <i class="fa-solid fa-circle-xmark"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="queue-task-row" style="font-size: 12px; color: var(--text-secondary);">
+                    <span style="max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(task.message || '')}">
+                        ${escapeHtml(task.message || '等待计时')}
+                    </span>
+                    <span class="queue-task-time">${countdownStr}</span>
+                </div>
+                <div class="queue-progress-bar">
+                    <div class="queue-progress-fill ${task.status}" style="width: ${progressPercent}%"></div>
+                </div>
+            </div>
+        `;
+    }).join("");
 }
 
 function showCustomConfirm(title, message) {
@@ -1437,6 +2026,16 @@ async function processQrScannedConfirm() {
     }
 
     if (proceed) {
+        // 检查这辆车是否为排队队列的队首任务
+        const queueTask = qrScanQueue.length > 0 ? qrScanQueue[0] : null;
+        if (queueTask && queueTask.plate === activeQrVehiclePlate && queueTask.type === activeQrType) {
+            // 是队列任务，并且当前正在处理中，我们通过设置 force = true 并调用 executeQueueTask 来让队列引擎去出列和激活下一台车
+            queueTask.force = true;
+            closeAllModals(); // 关闭弹窗
+            await executeQueueTask(queueTask);
+            return;
+        }
+
         const vehicle = qrVehiclesList.find(v => v.plate === activeQrVehiclePlate);
         if (vehicle) {
             const now = new Date();
@@ -1783,6 +2382,7 @@ document.addEventListener("DOMContentLoaded", () => {
     setupUploadEvents();
     loadQrConfig();
     initWaybillDates();
+    initQueue();
 
     // Key configuration
     safeAddListener(dom.saveVolcConfigBtn, "click", saveVolcConfig);
@@ -1839,6 +2439,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // QR Helper buttons
     safeAddListener(dom.batchAddBtn, "click", openBatchAddModal);
     safeAddListener(dom.resetAllVehiclesBtn, "click", handleResetAllVehicles);
+    safeAddListener(dom.batchScanBtn, "click", openBatchScanModal);
 
     // Modals buttons
     safeAddListener(dom.closeQrCodeModalBtn, "click", closeAllModals);
@@ -1848,6 +2449,14 @@ document.addEventListener("DOMContentLoaded", () => {
     safeAddListener(dom.closeBatchAddModalBtn, "click", closeAllModals);
     safeAddListener(dom.cancelBatchAddModalBtn, "click", closeAllModals);
     safeAddListener(dom.confirmBatchAddBtn, "click", handleBatchAddSubmit);
+
+    safeAddListener(dom.closeBatchScanModalBtn, "click", closeAllModals);
+    safeAddListener(dom.cancelBatchScanModalBtn, "click", closeAllModals);
+    safeAddListener(dom.confirmBatchScanBtn, "click", handleBatchScanSubmit);
+
+    // Queue Control Buttons
+    safeAddListener(dom.pauseQueueBtn, "click", toggleQueuePause);
+    safeAddListener(dom.clearQueueBtn, "click", () => clearBatchScanQueue());
 
     safeAddListener(dom.closeEditQrModalBtn, "click", closeAllModals);
     safeAddListener(dom.cancelEditQrModalBtn, "click", closeAllModals);
@@ -1876,3 +2485,58 @@ document.addEventListener("DOMContentLoaded", () => {
         if (event.key === "Escape") closeAllModals();
     });
 });
+
+window.removeTaskFromQueue = function(plate) {
+    const taskIndex = qrScanQueue.findIndex(t => t.plate === plate);
+    if (taskIndex === -1) return;
+    
+    // 如果移除的是队首任务，且当前弹窗打开的是这辆车，需要先关闭弹窗
+    if (taskIndex === 0) {
+        const task = qrScanQueue[0];
+        if (activeQrVehiclePlate === task.plate && activeQrType === task.type) {
+            closeAllModals();
+        }
+    }
+    
+    // 从队列中移除
+    qrScanQueue.splice(taskIndex, 1);
+    
+    // 如果移除的是队首任务，且队列里还有车，需要激活新的队首任务并设置防风控计时
+    if (taskIndex === 0 && qrScanQueue.length > 0) {
+        const nextTask = qrScanQueue[0];
+        const delayMin = dom.batchScanDelayMin ? (parseInt(dom.batchScanDelayMin.value) || 2) : 2;
+        const delayMax = dom.batchScanDelayMax ? (parseInt(dom.batchScanDelayMax.value) || 5) : 5;
+        const randomSeconds = Math.floor(Math.random() * (delayMax - delayMin + 1) + delayMin) * 60;
+        
+        let transitRemainingSeconds = 0;
+        if (nextTask.type === "dump") {
+            const nextVehicle = qrVehiclesList.find(c => c.plate === nextTask.plate);
+            if (nextVehicle && nextVehicle.worksiteTime) {
+                const worksiteTs = timeStrToTodayTimestamp(nextVehicle.worksiteTime);
+                if (worksiteTs) {
+                    const transitTimeInput = dom.batchScanTransitTime ? parseInt(dom.batchScanTransitTime.value) : 30;
+                    const transitMinutes = isNaN(transitTimeInput) ? 30 : transitTimeInput;
+                    const transitDurationMs = transitMinutes * 60 * 1000;
+                    const nowTs = Date.now();
+                    const targetTs = worksiteTs + transitDurationMs;
+                    transitRemainingSeconds = Math.max(0, Math.floor((targetTs - nowTs) / 1000));
+                }
+            }
+        }
+        
+        const nextDelaySeconds = Math.max(randomSeconds, transitRemainingSeconds);
+        nextTask.remainingSeconds = nextDelaySeconds;
+        nextTask.totalSeconds = nextDelaySeconds;
+        nextTask.status = "waiting";
+        nextTask.message = "等待计时...";
+        queueVerifyTickCount = 0;
+    }
+    
+    saveQueueState();
+    renderQueueStatus();
+    renderQrGrid();
+    
+    if (qrScanQueue.length === 0) {
+        clearBatchScanQueue(true);
+    }
+};

@@ -2604,3 +2604,216 @@ input:checked + .switch-slider:before {
         flex: 1;
     }
 }
+
+/* 扫码队列状态面板及批量扫码控制样式 */
+.queue-status-panel {
+    background: var(--card-bg);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--card-border);
+    border-radius: 10px;
+    box-shadow: 0 14px 36px rgba(0, 0, 0, 0.28);
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.queue-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid rgba(142, 170, 201, 0.15);
+    padding-bottom: 12px;
+    margin-bottom: 14px;
+}
+
+.queue-title {
+    font-family: var(--font-outfit);
+    font-weight: 700;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-primary);
+}
+
+.queue-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.queue-tasks-wrapper {
+    max-height: 180px;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+/* 自定义队列滚动条 */
+.queue-tasks-wrapper::-webkit-scrollbar {
+    width: 6px;
+}
+.queue-tasks-wrapper::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 3px;
+}
+.queue-tasks-wrapper::-webkit-scrollbar-thumb {
+    background: rgba(142, 170, 201, 0.2);
+    border-radius: 3px;
+}
+.queue-tasks-wrapper::-webkit-scrollbar-thumb:hover {
+    background: rgba(142, 170, 201, 0.35);
+}
+
+.queue-tasks-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 12px;
+}
+
+.queue-task-item {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(142, 170, 201, 0.12);
+    border-radius: 6px;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    transition: all 0.2s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+[data-theme="light"] .queue-task-item {
+    background: rgba(15, 23, 42, 0.02);
+    border-color: rgba(47, 111, 179, 0.1);
+}
+
+.queue-task-item.active {
+    border-color: rgba(47, 111, 179, 0.35);
+    background: rgba(47, 111, 179, 0.06);
+}
+
+.queue-task-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.queue-task-plate {
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.queue-task-status {
+    font-size: 11px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: 600;
+}
+
+.status-waiting {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-secondary);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+[data-theme="light"] .status-waiting {
+    background: rgba(15, 23, 42, 0.03);
+    color: var(--text-secondary);
+    border-color: rgba(15, 23, 42, 0.06);
+}
+
+.status-processing {
+    background: rgba(47, 111, 179, 0.15);
+    color: #93c5fd;
+    border: 1px solid rgba(47, 111, 179, 0.3);
+}
+
+.status-retrying {
+    background: rgba(197, 138, 31, 0.15);
+    color: #fde047;
+    border: 1px solid rgba(197, 138, 31, 0.3);
+}
+
+.queue-task-time {
+    font-family: var(--font-outfit);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.queue-progress-bar {
+    width: 100%;
+    height: 3px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 1.5px;
+    overflow: hidden;
+}
+
+[data-theme="light"] .queue-progress-bar {
+    background: rgba(15, 23, 42, 0.05);
+}
+
+.queue-progress-fill {
+    height: 100%;
+    background: var(--neon-cyan);
+    transition: width 1s linear;
+}
+
+.queue-progress-fill.processing {
+    background: var(--neon-blue);
+    animation: pulseGlow 1.5s infinite alternate ease-in-out;
+}
+
+.queue-progress-fill.retrying {
+    background: var(--neon-orange);
+}
+
+/* 呼吸动画 */
+@keyframes pulseGlow {
+    0% { opacity: 0.6; }
+    100% { opacity: 1; }
+}
+
+/* 车辆卡片上的队列状态徽章 */
+.card-queue-badge {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 5;
+    background: rgba(11, 23, 38, 0.95);
+    border: 1px dashed var(--neon-cyan);
+    border-radius: 8px;
+    padding: 12px;
+    text-align: center;
+    width: calc(100% - 24px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(4px);
+}
+
+[data-theme="light"] .card-queue-badge {
+    background: rgba(255, 255, 255, 0.96);
+    border-color: var(--neon-cyan);
+    box-shadow: 0 8px 24px rgba(15, 34, 55, 0.1);
+}
+
+.card-queue-badge .badge-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--neon-cyan);
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+}
+
+.card-queue-badge .badge-time {
+    font-family: var(--font-outfit);
+    font-size: 15px;
+    font-weight: 700;
+    color: #ffffff;
+}
+
+[data-theme="light"] .card-queue-badge .badge-time {
+    color: #0f172a;
+}
+
