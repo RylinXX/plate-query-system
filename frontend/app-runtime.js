@@ -476,8 +476,21 @@ window.fillPlate = function fillPlate(plate) {
 };
 
 
-// Initialize DOM elements for homepage Filing Query only
+// Initialize DOM elements for homepage Filing Query & Login Landing Page
 dom = {
+    loginLandingPage: $("loginLandingPage"),
+    accessPage: $("accessPage"),
+    loginLandingForm: $("loginLandingForm"),
+    loginLandingUsername: $("loginLandingUsername"),
+    loginLandingPassword: $("loginLandingPassword"),
+    loginLandingCaptcha: $("loginLandingCaptcha"),
+    loginLandingCaptchaBtn: $("loginLandingCaptchaBtn"),
+    loginLandingCaptchaImg: $("loginLandingCaptchaImg"),
+    loginLandingSubmitBtn: $("loginLandingSubmitBtn"),
+    loginLandingMsg: $("loginLandingMsg"),
+    userStatusBadge: $("userStatusBadge"),
+    logoutBtn: $("logoutBtn"),
+
     backendStatus: $("backendStatus"),
     themeToggleBtn: $("themeToggleBtn"),
     themeToggleIcon: $("themeToggleIcon"),
@@ -529,16 +542,129 @@ const safeAddListener = (el, event, handler) => {
     }
 };
 
+async function fetchLandingCaptcha() {
+    if (!dom.loginLandingCaptchaImg) return;
+    try {
+        const response = await fetch(`${BACKEND_URL}/api/login/captcha`, { cache: "no-store" });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+        if (data.success && data.img) {
+            dom.loginLandingCaptchaImg.src = data.img;
+            captchaUuid = data.uuid || "";
+        }
+    } catch (err) {
+        console.error("Failed to fetch landing captcha:", err);
+    }
+}
+
+function showLoginMsg(msg, type = "error") {
+    if (!dom.loginLandingMsg) return;
+    dom.loginLandingMsg.textContent = msg;
+    dom.loginLandingMsg.className = `login-status-msg ${type}`;
+    dom.loginLandingMsg.style.display = "block";
+}
+
+function hideLoginMsg() {
+    if (dom.loginLandingMsg) {
+        dom.loginLandingMsg.style.display = "none";
+    }
+}
+
+function checkAuthState() {
+    const hasToken = !!appConfig.authtoken;
+    if (hasToken) {
+        setDisplay(dom.loginLandingPage, "none");
+        setDisplay(dom.accessPage, "block");
+        setDisplay(dom.userStatusBadge, "flex");
+    } else {
+        setDisplay(dom.loginLandingPage, "flex");
+        setDisplay(dom.accessPage, "none");
+        setDisplay(dom.userStatusBadge, "none");
+        fetchLandingCaptcha();
+    }
+}
+
+async function performLandingLogin() {
+    hideLoginMsg();
+    const username = dom.loginLandingUsername ? dom.loginLandingUsername.value.trim() : "";
+    const password = dom.loginLandingPassword ? dom.loginLandingPassword.value : "";
+    const code = dom.loginLandingCaptcha ? dom.loginLandingCaptcha.value.trim() : "";
+
+    if (!username || !password || !code) {
+        showLoginMsg("请填写完整的账号、密码和验证码", "error");
+        return;
+    }
+
+    if (!dom.loginLandingSubmitBtn) return;
+    dom.loginLandingSubmitBtn.disabled = true;
+    const origText = dom.loginLandingSubmitBtn.innerHTML;
+    dom.loginLandingSubmitBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> 正在安全验证...`;
+
+    try {
+        const response = await fetch(`${BACKEND_URL}/api/login/token`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username, password, code, uuid: captchaUuid })
+        });
+        const data = await response.json();
+
+        if (!response.ok || !data.success || !data.authtoken) {
+            let errMsg = "登录鉴权失败，请检查账号密码或验证码";
+            if (data.detail && typeof data.detail === "object" && data.detail.message) {
+                errMsg = data.detail.message;
+            } else if (typeof data.detail === "string") {
+                errMsg = data.detail;
+            }
+            showLoginMsg(errMsg, "error");
+            fetchLandingCaptcha();
+            if (dom.loginLandingCaptcha) dom.loginLandingCaptcha.value = "";
+            return;
+        }
+
+        // 登录成功，写入 authtoken 并自动切换页面
+        appConfig.authtoken = data.authtoken;
+        localStorage.setItem(CONFIG_KEY, JSON.stringify(appConfig));
+        showLoginMsg("登录验证成功！正在进入系统...", "success");
+
+        setTimeout(() => {
+            hideLoginMsg();
+            checkAuthState();
+            syncDataFromServer();
+        }, 600);
+
+    } catch (err) {
+        showLoginMsg(`网络错误无法连接鉴权接口: ${err.message}`, "error");
+        fetchLandingCaptcha();
+    } finally {
+        dom.loginLandingSubmitBtn.disabled = false;
+        dom.loginLandingSubmitBtn.innerHTML = origText;
+    }
+}
+
+function handleLogout() {
+    if (confirm("确定要退出登录并清除当前身份凭证吗？")) {
+        appConfig.authtoken = "";
+        localStorage.setItem(CONFIG_KEY, JSON.stringify(appConfig));
+        checkAuthState();
+    }
+}
+
 loadConfig();
-loadConfigFromServer(false);
+loadConfigFromServer(false).then(() => {
+    checkAuthState();
+});
 initTheme();
 detectBackendStatus();
 fetchLocalData();
+checkAuthState();
 
 safeAddListener(dom.syncDataBtn, "click", syncDataFromServer);
 safeAddListener(dom.searchBtn, "click", performSearch);
 safeAddListener(dom.downloadTablePdfBtn, "click", generateTablePDF);
 safeAddListener(dom.themeToggleBtn, "click", toggleTheme);
+safeAddListener(dom.loginLandingCaptchaBtn, "click", fetchLandingCaptcha);
+safeAddListener(dom.loginLandingForm, "submit", performLandingLogin);
+safeAddListener(dom.logoutBtn, "click", handleLogout);
 
 if (dom.plateInput) {
     dom.plateInput.addEventListener("input", event => {
@@ -579,3 +705,4 @@ document.addEventListener("click", event => {
         }
     }
 });
+

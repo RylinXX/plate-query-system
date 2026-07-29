@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>智能车牌查询与备案系统</title>
+    <link rel="icon" type="image/png" href="assets/logo.png">
     <!-- Google 字体 -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <!-- FontAwesome 图标 -->
@@ -19,10 +20,17 @@
         <!-- 头部顶栏 -->
         <header class="app-header">
             <div class="logo">
-                <i class="fa-solid fa-shield-cat logo-icon"></i>
+                <img src="assets/logo.png" alt="PLATE SHIELD Logo" class="nav-logo-img">
                 <span class="logo-text">PLATE<span class="logo-highlight">SHIELD</span></span>
             </div>
             <div class="header-actions">
+                <div class="user-status-badge" id="userStatusBadge" style="display: none;">
+                    <i class="fa-solid fa-user-shield"></i>
+                    <span id="userStatusText" class="user-status-text">已凭证认证</span>
+                    <button class="btn btn-secondary btn-small logout-btn" id="logoutBtn" title="退出登录 / 重新认证">
+                        <i class="fa-solid fa-right-from-bracket"></i> 退出
+                    </button>
+                </div>
                 <span class="status-indicator offline" id="backendStatus">
                     <span class="status-dot"></span>
                     <span class="status-text">代理服务未就绪</span>
@@ -35,6 +43,66 @@
 
         <!-- 主体布局 -->
         <main class="app-body">
+            <!-- 首屏登录控制台 -->
+            <div id="loginLandingPage" class="login-landing-container" style="display: none;">
+                <div class="glass-panel login-landing-card">
+                    <div class="login-landing-header">
+                        <div class="login-brand-logo">
+                            <img src="assets/logo.png" alt="PLATE SHIELD Logo" class="landing-brand-logo-img">
+                        </div>
+                        <h1 class="login-landing-title">PLATE<span class="logo-highlight">SHIELD</span></h1>
+                        <p class="login-landing-subtitle">智能车牌查询准入系统 · 身份鉴权首屏</p>
+                    </div>
+
+                    <form id="loginLandingForm" onsubmit="return false;" class="login-landing-form">
+                        <div class="form-group">
+                            <label for="loginLandingUsername"><i class="fa-solid fa-user"></i> 鉴权账号</label>
+                            <div class="input-icon-wrapper">
+                                <i class="fa-solid fa-user input-icon"></i>
+                                <input type="text" id="loginLandingUsername" class="form-input-styled" placeholder="请输入鉴权账号 (如: yltdst)" value="yltdst" autocomplete="username">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="loginLandingPassword"><i class="fa-solid fa-lock"></i> 鉴权密码</label>
+                            <div class="input-icon-wrapper">
+                                <i class="fa-solid fa-lock input-icon"></i>
+                                <input type="password" id="loginLandingPassword" class="form-input-styled" placeholder="请输入鉴权密码 (如: ylt123)" value="ylt123" autocomplete="current-password">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="loginLandingCaptcha"><i class="fa-solid fa-shield-halved"></i> 图形验证码</label>
+                            <div class="captcha-flex-row">
+                                <div class="input-icon-wrapper captcha-input-wrap">
+                                    <i class="fa-solid fa-key input-icon"></i>
+                                    <input type="text" id="loginLandingCaptcha" class="form-input-styled" placeholder="输入验证码" autocomplete="off" maxlength="6">
+                                </div>
+                                <div class="captcha-img-container" id="loginLandingCaptchaBtn" title="点击刷新验证码">
+                                    <img id="loginLandingCaptchaImg" src="" alt="验证码加载中...">
+                                    <div class="captcha-spin-overlay">
+                                        <i class="fa-solid fa-arrows-rotate"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="login-status-msg" id="loginLandingMsg" style="display: none;"></div>
+
+                        <button type="submit" class="btn btn-primary btn-large login-submit-btn" id="loginLandingSubmitBtn">
+                            <i class="fa-solid fa-right-to-bracket"></i> 验证并登录系统
+                        </button>
+                    </form>
+
+                    <div class="login-landing-footer">
+                        <div class="footer-info-item">
+                            <i class="fa-solid fa-lock text-cyan"></i>
+                            <span>安全连接至 CapCloud 运单数据中枢</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- 车辆备案查询页面 -->
             <div id="accessPage">
                 <!-- 查询主卡片 -->

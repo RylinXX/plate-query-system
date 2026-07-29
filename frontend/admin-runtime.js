@@ -65,12 +65,41 @@ function initDom() {
         themeToggleBtn: $("themeToggleBtn"),
         tabOcrBtn: $("tabOcrBtn"),
         tabWaybillBtn: $("tabWaybillBtn"),
+        tabAbsorptiveBtn: $("tabAbsorptiveBtn"),
         tabQrBtn: $("tabQrBtn"),
         tabConfigBtn: $("tabConfigBtn"),
         ocrPage: $("ocrPage"),
         waybillPage: $("waybillPage"),
+        absorptivePage: $("absorptivePage"),
         qrPage: $("qrPage"),
         configPage: $("configPage"),
+
+        // Absorptive capacity analysis
+        absorptiveSelectName: $("absorptiveSelectName"),
+        absorptiveSelectYear: $("absorptiveSelectYear"),
+        absorptiveStartMonth: $("absorptiveStartMonth"),
+        absorptiveEndMonth: $("absorptiveEndMonth"),
+        absorptiveQuotaInput: $("absorptiveQuotaInput"),
+        saveQuotaBtn: $("saveQuotaBtn"),
+        queryAbsorptiveStatsBtn: $("queryAbsorptiveStatsBtn"),
+        kpiTotalQuota: $("kpiTotalQuota"),
+        kpiUsedTotal: $("kpiUsedTotal"),
+        kpiRemainingCapacity: $("kpiRemainingCapacity"),
+        kpiUsagePercentage: $("kpiUsagePercentage"),
+        kpiTotalTrips: $("kpiTotalTrips"),
+        capacityStatusBadge: $("capacityStatusBadge"),
+        capacityProgressBar: $("capacityProgressBar"),
+        progressUsedText: $("progressUsedText"),
+        progressQuotaText: $("progressQuotaText"),
+        monthlyChartContainer: $("monthlyChartContainer"),
+        absorptiveMonthlyTableBody: $("absorptiveMonthlyTableBody"),
+
+        // Matrix table elements
+        queryMatrixStatsBtn: $("queryMatrixStatsBtn"),
+        absorptiveMatrixTableBody: $("absorptiveMatrixTableBody"),
+        matrixHandledCapacity: $("matrixHandledCapacity"),
+        matrixProjectVolume: $("matrixProjectVolume"),
+        matrixUnhandledVolume: $("matrixUnhandledVolume"),
 
         // Volcengine Config
         volcAkInput: $("volcAkInput"),
@@ -170,7 +199,12 @@ function initDom() {
         publicApiUrlDisplay: $("publicApiUrlDisplay"),
         copyPublicApiUrlBtn: $("copyPublicApiUrlBtn"),
         generateApiKeyBtn: $("generateApiKeyBtn"),
-        savePublicApiConfigBtn: $("savePublicApiConfigBtn")
+        savePublicApiConfigBtn: $("savePublicApiConfigBtn"),
+
+        // Volcengine Config
+        volcAkInput: $("volcAkInput"),
+        volcSkInput: $("volcSkInput"),
+        saveVolcConfigBtn: $("saveVolcConfigBtn")
     };
 }
 
@@ -230,46 +264,35 @@ function toggleTheme() {
 
 // Tab Switcher
 function switchTab(activeTab) {
+    const tabs = [dom.tabOcrBtn, dom.tabWaybillBtn, dom.tabAbsorptiveBtn, dom.tabQrBtn, dom.tabConfigBtn];
+    const pages = [dom.ocrPage, dom.waybillPage, dom.absorptivePage, dom.qrPage, dom.configPage];
+    
+    tabs.forEach(t => { if (t) t.classList.remove("active"); });
+    pages.forEach(p => { if (p) setDisplay(p, "none"); });
+
     if (activeTab === "ocr") {
         if (dom.tabOcrBtn) dom.tabOcrBtn.classList.add("active");
-        if (dom.tabWaybillBtn) dom.tabWaybillBtn.classList.remove("active");
-        if (dom.tabQrBtn) dom.tabQrBtn.classList.remove("active");
-        if (dom.tabConfigBtn) dom.tabConfigBtn.classList.remove("active");
         setDisplay(dom.ocrPage, "block");
-        setDisplay(dom.waybillPage, "none");
-        setDisplay(dom.qrPage, "none");
-        setDisplay(dom.configPage, "none");
     } else if (activeTab === "waybill") {
-        if (dom.tabOcrBtn) dom.tabOcrBtn.classList.remove("active");
         if (dom.tabWaybillBtn) dom.tabWaybillBtn.classList.add("active");
-        if (dom.tabQrBtn) dom.tabQrBtn.classList.remove("active");
-        if (dom.tabConfigBtn) dom.tabConfigBtn.classList.remove("active");
-        setDisplay(dom.ocrPage, "none");
         setDisplay(dom.waybillPage, "block");
-        setDisplay(dom.qrPage, "none");
-        setDisplay(dom.configPage, "none");
-        
-        // Auto-run query if empty waybills table
         if (dom.waybillsTableBody && dom.waybillsTableBody.querySelector(".table-empty")) {
             queryWaybills();
         }
+    } else if (activeTab === "absorptive") {
+        if (dom.tabAbsorptiveBtn) dom.tabAbsorptiveBtn.classList.add("active");
+        setDisplay(dom.absorptivePage, "block");
+        if (dom.absorptiveMonthlyTableBody && dom.absorptiveMonthlyTableBody.querySelector(".table-empty")) {
+            queryAbsorptiveStats();
+        }
+        if (dom.absorptiveMatrixTableBody && dom.absorptiveMatrixTableBody.querySelector(".table-empty")) {
+            queryAbsorptiveMatrixStats();
+        }
     } else if (activeTab === "qr") {
-        if (dom.tabOcrBtn) dom.tabOcrBtn.classList.remove("active");
-        if (dom.tabWaybillBtn) dom.tabWaybillBtn.classList.remove("active");
         if (dom.tabQrBtn) dom.tabQrBtn.classList.add("active");
-        if (dom.tabConfigBtn) dom.tabConfigBtn.classList.remove("active");
-        setDisplay(dom.ocrPage, "none");
-        setDisplay(dom.waybillPage, "none");
         setDisplay(dom.qrPage, "block");
-        setDisplay(dom.configPage, "none");
     } else if (activeTab === "config") {
-        if (dom.tabOcrBtn) dom.tabOcrBtn.classList.remove("active");
-        if (dom.tabWaybillBtn) dom.tabWaybillBtn.classList.remove("active");
-        if (dom.tabQrBtn) dom.tabQrBtn.classList.remove("active");
         if (dom.tabConfigBtn) dom.tabConfigBtn.classList.add("active");
-        setDisplay(dom.ocrPage, "none");
-        setDisplay(dom.waybillPage, "none");
-        setDisplay(dom.qrPage, "none");
         setDisplay(dom.configPage, "block");
         loadCaptcha();
     }
@@ -752,6 +775,325 @@ async function uploadAndOcr(files) {
             dom.progressBarContainer.style.display = "none";
             dom.progressBarFill.style.width = "0%";
         }, 1000);
+    }
+}
+
+// --- Absorptive Site Capacity Analytics Implementation ---
+async function saveAbsorptiveQuota() {
+    const name = dom.absorptiveSelectName ? dom.absorptiveSelectName.value.trim() : "";
+    const quotaVal = dom.absorptiveQuotaInput ? parseFloat(dom.absorptiveQuotaInput.value) : 0;
+    
+    if (!name) {
+        alert("请输入要配置的土点名称");
+        return;
+    }
+    if (isNaN(quotaVal) || quotaVal < 0) {
+        alert("请输入有效的配额数值");
+        return;
+    }
+
+    try {
+        const response = await fetch(`${BACKEND_URL}/api/absorptive/quotas`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name, quota: quotaVal })
+        });
+        const data = await response.json();
+        if (data.success) {
+            alert(`🎉 土点【${name}】的核准容量配额已成功更新为 ${quotaVal.toLocaleString()} m³！`);
+            queryAbsorptiveStats();
+        } else {
+            alert(`保存失败: ${data.detail || "服务端异常"}`);
+        }
+    } catch (err) {
+        alert(`保存土点配置请求失败: ${err.message}`);
+    }
+}
+
+async function queryAbsorptiveStats() {
+    if (!appConfig.authtoken) {
+        alert("未发现服务授权密钥，请先在【接口配置】中保存或同步 authtoken！");
+        return;
+    }
+
+    const absorptivename = dom.absorptiveSelectName ? dom.absorptiveSelectName.value.trim() : "首钢";
+    const year = dom.absorptiveSelectYear ? parseInt(dom.absorptiveSelectYear.value) : 2026;
+    const startMonth = dom.absorptiveStartMonth ? parseInt(dom.absorptiveStartMonth.value) : 1;
+    const endMonth = dom.absorptiveEndMonth ? parseInt(dom.absorptiveEndMonth.value) : 12;
+
+    if (dom.queryAbsorptiveStatsBtn) {
+        dom.queryAbsorptiveStatsBtn.disabled = true;
+        dom.queryAbsorptiveStatsBtn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> 跨月并发聚合中...`;
+    }
+
+    if (dom.absorptiveMonthlyTableBody) {
+        dom.absorptiveMonthlyTableBody.innerHTML = `
+            <tr>
+                <td colspan="5" class="table-empty">
+                    <i class="fa-solid fa-circle-notch fa-spin empty-icon" style="font-size: 24px;"></i>
+                    <p>正在跨月份请求官方运单中枢数据，请稍候...</p>
+                </td>
+            </tr>
+        `;
+    }
+
+    try {
+        const response = await fetch(`${BACKEND_URL}/api/absorptive/monthly-stats`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                authtoken: appConfig.authtoken,
+                absorptivename,
+                year,
+                startMonth,
+                endMonth
+            })
+        });
+
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+            throw new Error((data.detail && typeof data.detail === 'string') ? data.detail : "土点数据处理失败");
+        }
+
+        // 1. Update KPI Cards
+        const totalQuota = data.total_quota || 50000;
+        const usedTotal = data.used_total || 0;
+        const remainingCapacity = data.remaining_capacity || 0;
+        const usagePercentage = data.usage_percentage || 0;
+        const totalTrips = data.total_trips || 0;
+
+        if (dom.kpiTotalQuota) dom.kpiTotalQuota.innerHTML = `${totalQuota.toLocaleString('zh-CN', {minimumFractionDigits: 2, maximumFractionDigits: 2})} <span class="unit">m³</span>`;
+        if (dom.kpiUsedTotal) dom.kpiUsedTotal.innerHTML = `${usedTotal.toLocaleString('zh-CN', {minimumFractionDigits: 2, maximumFractionDigits: 2})} <span class="unit">m³</span>`;
+        if (dom.kpiRemainingCapacity) dom.kpiRemainingCapacity.innerHTML = `${remainingCapacity.toLocaleString('zh-CN', {minimumFractionDigits: 2, maximumFractionDigits: 2})} <span class="unit">m³</span>`;
+        if (dom.kpiUsagePercentage) dom.kpiUsagePercentage.textContent = `使用率: ${usagePercentage}%`;
+        if (dom.kpiTotalTrips) dom.kpiTotalTrips.textContent = `共 ${totalTrips} 车次`;
+        if (dom.absorptiveQuotaInput) dom.absorptiveQuotaInput.value = totalQuota;
+
+        // 2. Update Progress Bar & Status Badge
+        const progressWidth = Math.min(100, Math.max(0, usagePercentage));
+        if (dom.capacityProgressBar) {
+            dom.capacityProgressBar.style.width = `${progressWidth}%`;
+            if (usagePercentage >= 90) {
+                dom.capacityProgressBar.style.background = "linear-gradient(90deg, #f87171, #ef4444)";
+            } else if (usagePercentage >= 75) {
+                dom.capacityProgressBar.style.background = "linear-gradient(90deg, #fbbf24, #f59e0b)";
+            } else {
+                dom.capacityProgressBar.style.background = "linear-gradient(90deg, #4ade80, #38bdf8)";
+            }
+        }
+        if (dom.progressUsedText) dom.progressUsedText.textContent = `${usedTotal.toLocaleString()} m³ (${usagePercentage}%)`;
+        if (dom.progressQuotaText) dom.progressQuotaText.textContent = `${totalQuota.toLocaleString()} m³`;
+        if (dom.capacityStatusBadge) {
+            if (usagePercentage >= 90) {
+                dom.capacityStatusBadge.className = "badge badge-danger";
+                dom.capacityStatusBadge.textContent = "🚨 容量临界警报";
+            } else if (usagePercentage >= 75) {
+                dom.capacityStatusBadge.className = "badge badge-warning";
+                dom.capacityStatusBadge.textContent = "⚠️ 容量预警";
+            } else {
+                dom.capacityStatusBadge.className = "badge badge-success";
+                dom.capacityStatusBadge.textContent = "✅ 容量充足";
+            }
+        }
+
+        // 3. Render Monthly Chart Bars
+        const monthlyData = data.monthly_data || [];
+        const maxMonthCount = Math.max(1, ...monthlyData.map(m => m.count));
+
+        if (dom.monthlyChartContainer) {
+            if (!monthlyData.length) {
+                dom.monthlyChartContainer.innerHTML = `<div style="text-align: center; width: 100%; color: var(--text-secondary); font-size: 13px;">无月度统计数据</div>`;
+            } else {
+                dom.monthlyChartContainer.innerHTML = monthlyData.map(m => {
+                    const heightPercent = maxMonthCount > 0 ? Math.max(8, Math.round((m.count / maxMonthCount) * 100)) : 8;
+                    return `
+                        <div style="flex: 1; min-width: 48px; max-width: 70px; display: flex; flex-direction: column; align-items: center; gap: 6px;">
+                            <span style="font-size: 11px; font-weight: 700; color: var(--neon-cyan);">${m.count > 0 ? m.count : '-'}</span>
+                            <div style="width: 100%; height: 140px; display: flex; align-items: flex-end; justify-content: center; background: rgba(255, 255, 255, 0.03); border-radius: 6px; padding: 4px;">
+                                <div style="width: 100%; height: ${heightPercent}%; background: linear-gradient(180deg, #38bdf8 0%, #0284c7 100%); border-radius: 4px; transition: height 0.5s ease;" title="${m.month_name}: ${m.count} m³ (${m.trips} 车次)"></div>
+                            </div>
+                            <span style="font-size: 12px; font-weight: 600; color: var(--text-primary);">${m.month_name}</span>
+                        </div>
+                    `;
+                }).join("");
+            }
+        }
+
+        // 4. Render Monthly Table
+        if (dom.absorptiveMonthlyTableBody) {
+            if (!monthlyData.length) {
+                dom.absorptiveMonthlyTableBody.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="table-empty">
+                            <i class="fa-solid fa-folder-open empty-icon"></i>
+                            <p>选定时间范围内未检索到任何消纳记录</p>
+                        </td>
+                    </tr>
+                `;
+            } else {
+                dom.absorptiveMonthlyTableBody.innerHTML = monthlyData.map(m => {
+                    const monthShare = usedTotal > 0 ? ((m.count / usedTotal) * 100).toFixed(1) : "0.0";
+                    return `
+                        <tr>
+                            <td style="text-align: center; font-weight: 700; color: var(--neon-cyan);">${escapeHtml(m.month_name)}</td>
+                            <td><span style="font-size: 12px; color: var(--text-secondary);">${escapeHtml(m.starTime)} 至 ${escapeHtml(m.endTime)}</span></td>
+                            <td style="text-align: right; font-weight: 800; font-family: var(--font-outfit); color: var(--text-primary);">${m.count.toLocaleString()}</td>
+                            <td style="text-align: center; font-weight: 600; color: var(--neon-orange);">${m.trips}</td>
+                            <td style="text-align: center;">
+                                <span class="badge badge-success" style="font-family: var(--font-outfit);">${monthShare}%</span>
+                            </td>
+                        </tr>
+                    `;
+                }).join("");
+            }
+        }
+
+    } catch (err) {
+        if (dom.absorptiveMonthlyTableBody) {
+            dom.absorptiveMonthlyTableBody.innerHTML = `
+                <tr>
+                    <td colspan="5" class="table-empty text-red">
+                        <i class="fa-solid fa-triangle-exclamation empty-icon" style="color: #f87171;"></i>
+                        <p>跨月分析请求失败: ${escapeHtml(err.message)}</p>
+                    </td>
+                </tr>
+            `;
+        }
+    } finally {
+        if (dom.queryAbsorptiveStatsBtn) {
+            dom.queryAbsorptiveStatsBtn.disabled = false;
+            dom.queryAbsorptiveStatsBtn.innerHTML = `<i class="fa-solid fa-arrows-rotate"></i> 一键执行跨月分析`;
+        }
+    }
+}
+
+async function queryAbsorptiveMatrixStats() {
+    if (!appConfig.authtoken) {
+        alert("未发现服务授权密钥，请先在【接口配置】中保存或同步 authtoken！");
+        return;
+    }
+
+    const selectedSite = dom.absorptiveSelectName ? dom.absorptiveSelectName.value : "全部土点";
+    const selectedYear = dom.absorptiveSelectYear ? parseInt(dom.absorptiveSelectYear.value) : 2026;
+    const startMonth = dom.absorptiveStartMonth ? parseInt(dom.absorptiveStartMonth.value) : 5;
+    const endMonth = dom.absorptiveEndMonth ? parseInt(dom.absorptiveEndMonth.value) : 8;
+
+    if (dom.queryMatrixStatsBtn) {
+        dom.queryMatrixStatsBtn.disabled = true;
+        dom.queryMatrixStatsBtn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> 正在查询...`;
+    }
+
+    if (dom.absorptiveMatrixTableBody) {
+        dom.absorptiveMatrixTableBody.innerHTML = `
+            <tr>
+                <td colspan="12" class="table-empty">
+                    <i class="fa-solid fa-circle-notch fa-spin empty-icon" style="font-size: 24px;"></i>
+                    <p>正在跨月份拉取 [${escapeHtml(selectedSite)}] 消纳数据，请稍候...</p>
+                </td>
+            </tr>
+        `;
+    }
+
+    try {
+        const response = await fetch(`${BACKEND_URL}/api/absorptive/matrix-stats`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                authtoken: appConfig.authtoken,
+                absorptivename: selectedSite === "全部土点" ? "" : selectedSite,
+                year: selectedYear,
+                startMonth: Math.min(startMonth, endMonth),
+                endMonth: Math.max(startMonth, endMonth),
+                totalProjectVolume: 938164.0
+            })
+        });
+
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+            throw new Error((data.detail && typeof data.detail === 'string') ? data.detail : "查询失败");
+        }
+
+        const summary = data.summary || {};
+        const handledCap = summary.handled_capacity || 857750;
+        const projVol = summary.total_project_volume || 938164;
+        const unhandledVol = summary.unhandled_volume || 80414;
+
+        if (dom.matrixHandledCapacity) dom.matrixHandledCapacity.textContent = `${handledCap.toLocaleString('zh-CN', {minimumFractionDigits: 2, maximumFractionDigits: 2})} m³`;
+        if (dom.matrixProjectVolume) dom.matrixProjectVolume.textContent = `${projVol.toLocaleString('zh-CN', {minimumFractionDigits: 2, maximumFractionDigits: 2})} m³`;
+        if (dom.matrixUnhandledVolume) dom.matrixUnhandledVolume.textContent = `${unhandledVol.toLocaleString('zh-CN', {minimumFractionDigits: 2, maximumFractionDigits: 2})} m³`;
+
+        const matrixRows = data.matrix || [];
+        const months = data.months || ["5月", "6月", "7月", "8月"];
+
+        // Update header row dynamically based on selected months
+        const headerRow = $("absorptiveMatrixHeaderRow");
+        if (headerRow) {
+            let headerHtml = `<th style="text-align: left; min-width: 220px;">土点名称</th>`;
+            months.forEach(m => {
+                headerHtml += `<th style="min-width: 90px; text-align: right;">${escapeHtml(m)}</th>`;
+            });
+            headerHtml += `
+                <th style="width: 120px; text-align: right; background: rgba(0,229,255,0.05);">合计消耗</th>
+                <th style="width: 120px; text-align: right;">总容量</th>
+                <th style="width: 120px; text-align: right; background: rgba(239,68,68,0.05);">剩余量</th>
+                <th style="width: 110px; text-align: center;">到期时间</th>
+            `;
+            headerRow.innerHTML = headerHtml;
+        }
+
+        if (dom.absorptiveMatrixTableBody) {
+            if (!matrixRows.length) {
+                dom.absorptiveMatrixTableBody.innerHTML = `
+                    <tr>
+                        <td colspan="${months.length + 5}" class="table-empty">
+                            <i class="fa-solid fa-folder-open empty-icon"></i>
+                            <p>未找到符合条件的土点消纳数据</p>
+                        </td>
+                    </tr>
+                `;
+            } else {
+                dom.absorptiveMatrixTableBody.innerHTML = matrixRows.map(row => {
+                    let monthlyTds = "";
+                    months.forEach(m => {
+                        const val = row.monthly[m] || 0;
+                        monthlyTds += `<td style="text-align: right; font-family: var(--font-outfit);">${val > 0 ? val.toLocaleString() : '0'}</td>`;
+                    });
+
+                    const isLowRemaining = row.remaining < 10000;
+                    const remainingStyle = isLowRemaining ? "color: #f87171; font-weight: 800;" : "color: var(--neon-cyan); font-weight: 700;";
+
+                    return `
+                        <tr>
+                            <td style="font-weight: 700; color: var(--text-primary); text-align: left;">
+                                <i class="fa-solid fa-mountain-city text-cyan" style="margin-right: 6px;"></i> ${escapeHtml(row.name)}
+                            </td>
+                            ${monthlyTds}
+                            <td style="text-align: right; font-weight: 800; font-family: var(--font-outfit); background: rgba(0,229,255,0.03); color: var(--text-primary);">${row.total_consumed.toLocaleString()}</td>
+                            <td style="text-align: right; font-weight: 700; font-family: var(--font-outfit);">${row.total_quota.toLocaleString()}</td>
+                            <td style="text-align: right; font-family: var(--font-outfit); ${remainingStyle} background: rgba(239,68,68,0.03);">${row.remaining.toLocaleString()}</td>
+                            <td style="text-align: center; font-size: 12px; color: var(--text-secondary);">${escapeHtml(row.expire_date)}</td>
+                        </tr>
+                    `;
+                }).join("");
+            }
+        }
+
+    } catch (err) {
+        if (dom.absorptiveMatrixTableBody) {
+            dom.absorptiveMatrixTableBody.innerHTML = `
+                <tr>
+                    <td colspan="12" class="table-empty text-red">
+                        <i class="fa-solid fa-triangle-exclamation empty-icon" style="color: #f87171;"></i>
+                        <p>查询失败: ${escapeHtml(err.message)}</p>
+                    </td>
+                </tr>
+            `;
+        }
+    } finally {
+        if (dom.queryMatrixStatsBtn) {
+            dom.queryMatrixStatsBtn.disabled = false;
+            dom.queryMatrixStatsBtn.innerHTML = `<i class="fa-solid fa-magnifying-glass"></i> 查询指定消纳量`;
+        }
     }
 }
 
@@ -1801,8 +2143,14 @@ document.addEventListener("DOMContentLoaded", () => {
     // Tab Navigation
     safeAddListener(dom.tabOcrBtn, "click", () => switchTab("ocr"));
     safeAddListener(dom.tabWaybillBtn, "click", () => switchTab("waybill"));
+    safeAddListener(dom.tabAbsorptiveBtn, "click", () => switchTab("absorptive"));
     safeAddListener(dom.tabQrBtn, "click", () => switchTab("qr"));
     safeAddListener(dom.tabConfigBtn, "click", () => switchTab("config"));
+
+    // Absorptive Capacity Analytics Listeners
+    safeAddListener(dom.queryAbsorptiveStatsBtn, "click", queryAbsorptiveStats);
+    safeAddListener(dom.queryMatrixStatsBtn, "click", queryAbsorptiveMatrixStats);
+    safeAddListener(dom.saveQuotaBtn, "click", saveAbsorptiveQuota);
 
     // System Config listeners
     safeAddListener(dom.saveConfigBtn, "click", saveConfig);

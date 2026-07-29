@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>车辆备案管理后台 - 智能车牌备案系统</title>
+    <link rel="icon" type="image/png" href="assets/logo.png">
     <!-- Google 字体 -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <!-- FontAwesome 图标 -->
@@ -265,7 +266,7 @@
         <!-- 头部导航 -->
         <header class="admin-header">
             <div class="admin-header-title">
-                <i class="fa-solid fa-user-shield logo-icon-cyan" style="font-size: 24px;"></i>
+                <img src="assets/logo.png" alt="PLATE SHIELD Logo" class="nav-logo-img">
                 <h1>车辆备案管理后台</h1>
             </div>
             <div class="admin-header-actions">
@@ -285,6 +286,9 @@
             </button>
             <button class="tab-btn" id="tabWaybillBtn">
                 <i class="fa-solid fa-truck-moving"></i> 运单监控
+            </button>
+            <button class="tab-btn" id="tabAbsorptiveBtn">
+                <i class="fa-solid fa-chart-pie"></i> 土点容量分析
             </button>
             <button class="tab-btn" id="tabOcrBtn">
                 <i class="fa-solid fa-file-invoice"></i> 准运证审核
@@ -465,6 +469,120 @@
                                 <td colspan="9" class="table-empty">
                                     <i class="fa-solid fa-folder-open empty-icon"></i>
                                     <p>无检索运单数据，请输入查询条件并点击【查询】！</p>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+
+        <!-- 土点容量分析页面 (absorptivePage) -->
+        <div id="absorptivePage" class="admin-vertical-layout" style="display: none;">
+            <!-- 全土点月度消纳量与余量汇总大表 (Excel 矩阵汇总) -->
+            <section class="glass-panel">
+                <div class="table-panel-header" style="margin-bottom: 20px; border-bottom: 1px solid rgba(142, 170, 201, 0.15); padding-bottom: 16px;">
+                    <div class="table-header-left">
+                        <h2 class="table-panel-title">
+                            <i class="fa-solid fa-table-cells logo-icon-cyan"></i> 土点容量与月度消纳量管控表
+                        </h2>
+                        <p class="table-panel-subtitle">支持查询指定土点、指定月份的消纳消耗量，以及全土点总容量与剩余量矩阵</p>
+                    </div>
+                </div>
+
+                <!-- 筛选控制区域 -->
+                <div class="filter-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 20px;">
+                    <div class="form-group">
+                        <label class="form-label" for="absorptiveSelectName">指定土点 / 消纳场</label>
+                        <select id="absorptiveSelectName" class="form-input select-style">
+                            <option value="全部土点" selected>全部土点 (7大土点汇总)</option>
+                            <option value="妙峰绿水资源化处置厂">妙峰绿水资源化处置厂</option>
+                            <option value="石景山区北辛安路">石景山区北辛安路</option>
+                            <option value="石景山区西黄村棚户">石景山区西黄村棚户</option>
+                            <option value="石景山区首钢园区东南">石景山区首钢园区东南</option>
+                            <option value="首建恒纪建筑垃圾资源化处置场">首建恒纪建筑垃圾资源化处置场</option>
+                            <option value="国盛通顺临时资源化处置场">国盛通顺临时资源化处置场</option>
+                            <option value="北京石宇环保科技有限公司临时资源化处置场">北京石宇环保科技有限公司临时资源化处置场</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="absorptiveSelectYear">统计年份</label>
+                        <select id="absorptiveSelectYear" class="form-input select-style">
+                            <option value="2026" selected>2026 年</option>
+                            <option value="2025">2025 年</option>
+                            <option value="2024">2024 年</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="absorptiveStartMonth">起始月份</label>
+                        <select id="absorptiveStartMonth" class="form-input select-style">
+                            <option value="1">1 月</option>
+                            <option value="2">2 月</option>
+                            <option value="3">3 月</option>
+                            <option value="4">4 月</option>
+                            <option value="5" selected>5 月</option>
+                            <option value="6">6 月</option>
+                            <option value="7">7 月</option>
+                            <option value="8">8 月</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="absorptiveEndMonth">结束月份</label>
+                        <select id="absorptiveEndMonth" class="form-input select-style">
+                            <option value="12">12 月</option>
+                            <option value="11">11 月</option>
+                            <option value="10">10 月</option>
+                            <option value="9">9 月</option>
+                            <option value="8" selected>8 月</option>
+                            <option value="7">7 月</option>
+                            <option value="6">6 月</option>
+                            <option value="5">5 月</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="display: flex; align-items: flex-end;">
+                        <button class="btn btn-primary" id="queryMatrixStatsBtn" style="width: 100%; height: 42px;">
+                            <i class="fa-solid fa-magnifying-glass"></i> 查询指定消纳量
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 项目总体额度卡片 (已办理 / 产生总量 / 未办理) -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 20px;">
+                    <div class="matrix-kpi-card cyan">
+                        <span class="matrix-kpi-title">已办理额度容量 (7大土点总容量)</span>
+                        <div class="matrix-kpi-value text-cyan" id="matrixHandledCapacity">857,750.00 m³</div>
+                    </div>
+                    <div class="matrix-kpi-card amber">
+                        <span class="matrix-kpi-title">项目产生总量需求</span>
+                        <div class="matrix-kpi-value text-amber" id="matrixProjectVolume">938,164.00 m³</div>
+                    </div>
+                    <div class="matrix-kpi-card red">
+                        <span class="matrix-kpi-title">未办理容量缺口</span>
+                        <div class="matrix-kpi-value text-red" id="matrixUnhandledVolume">80,414.00 m³</div>
+                    </div>
+                </div>
+
+                <!-- 矩阵表格 -->
+                <div class="table-responsive">
+                    <table class="modern-table">
+                        <thead>
+                            <tr id="absorptiveMatrixHeaderRow">
+                                <th style="text-align: left; min-width: 220px;">土点名称</th>
+                                <th style="width: 100px; text-align: right;">5月</th>
+                                <th style="width: 100px; text-align: right;">6月</th>
+                                <th style="width: 100px; text-align: right;">7月</th>
+                                <th style="width: 100px; text-align: right;">8月</th>
+                                <th style="width: 120px; text-align: right; background: rgba(0,229,255,0.05);">合计消耗</th>
+                                <th style="width: 120px; text-align: right;">总容量</th>
+                                <th style="width: 120px; text-align: right; background: rgba(239,68,68,0.05);">剩余量</th>
+                                <th style="width: 110px; text-align: center;">到期时间</th>
+                            </tr>
+                        </thead>
+                        <tbody id="absorptiveMatrixTableBody">
+                            <tr>
+                                <td colspan="9" class="table-empty">
+                                    <i class="fa-solid fa-folder-open empty-icon"></i>
+                                    <p>点击上方【查询指定消纳量】拉取最新 7大土点消纳汇总表</p>
                                 </td>
                             </tr>
                         </tbody>

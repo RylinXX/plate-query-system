@@ -60,6 +60,7 @@ class WaybillQueryRequest(BaseModel):
     endTime: str = ""
     code: str = ""
     overloadRatio: str = ""
+    absorptivename: str = ""
     type: int = 1
 
 
@@ -695,6 +696,7 @@ async def query_waybills(payload: WaybillQueryRequest):
         "endTime": payload.endTime.strip(),
         "code": payload.code.strip(),
         "overloadRatio": payload.overloadRatio.strip(),
+        "absorptivename": payload.absorptivename.strip(),
         "type": payload.type
     }
     print(f"Forwarding body: {body}")
@@ -720,6 +722,372 @@ async def query_waybills(payload: WaybillQueryRequest):
             status_code=504,
             detail=f"请求目标系统超时或连接失败，异常信息: {exc}"
         )
+
+
+ABSORPTIVE_QUOTAS_FILE = os.path.abspath(os.path.join(BASE_DIR, "absorptive_quotas.json"))
+
+class AbsorptiveQuotaPayload(BaseModel):
+    name: str
+    quota: float
+
+class AbsorptiveMonthlyStatsRequest(BaseModel):
+    authtoken: str
+    absorptivename: str = ""
+    year: int = 2026
+    startMonth: int = 1
+    endMonth: int = 12
+
+def _load_absorptive_quotas() -> Dict[str, float]:
+    if os.path.exists(ABSORPTIVE_QUOTAS_FILE):
+        try:
+            with open(ABSORPTIVE_QUOTAS_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {
+        "首钢": 50000.0,
+        "默认消纳场": 100000.0
+    }
+
+def _save_absorptive_quotas(quotas: Dict[str, float]):
+    try:
+        with open(ABSORPTIVE_QUOTAS_FILE, "w", encoding="utf-8") as f:
+            json.dump(quotas, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"Error saving absorptive quotas: {e}")
+
+@app.get("/api/absorptive/quotas")
+async def get_absorptive_quotas():
+    return {"success": True, "quotas": _load_absorptive_quotas()}
+
+@app.post("/api/absorptive/quotas")
+async def set_absorptive_quota(payload: AbsorptiveQuotaPayload):
+    name = payload.name.strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="土点名称不能为空")
+    quotas = _load_absorptive_quotas()
+    quotas[name] = max(0.0, payload.quota)
+    _save_absorptive_quotas(quotas)
+    return {"success": True, "name": name, "quota": quotas[name]}
+
+@app.post("/api/absorptive/monthly-stats")
+async def query_absorptive_monthly_stats(payload: AbsorptiveMonthlyStatsRequest):
+    import calendar
+    authtoken = payload.authtoken.strip()
+    absorptivename = payload.absorptivename.strip()
+    year = payload.year
+    start_month = max(1, min(12, payload.startMonth))
+    end_month = max(start_month, min(12, payload.endMonth))
+    
+    if not authtoken:
+        raise HTTPException(status_code=400, detail="authtoken 授权密钥不能为空！")
+        
+    targetUrl = f"{REMOTE_BASE_URL}/constructionSite/record-waybill/pageList"
+    headers = _remote_headers(authtoken)
+    
+    monthly_results = []
+    used_total = 0.0
+    total_trips = 0
+    
+    from datetime import date
+    today_str = date.today().strftime("%Y-%m-%d")
+
+    async with httpx.AsyncClient(timeout=20.0) as client:
+        for month in range(start_month, end_month + 1):
+            _, last_day = calendar.monthrange(year, month)
+            starTime = f"{year}-{month:02d}-01"
+            endTime = f"{year}-{month:02d}-{last_day:02d}"
+            
+            if starTime > today_str:
+                monthly_results.append({
+                    "month": f"{year}-{month:02d}",
+                    "month_name": f"{month}月",
+                    "starTime": starTime,
+                    "endTime": endTime,
+                    "count": 0.0,
+                    "trips": 0
+                })
+                continue
+                
+            if endTime > today_str:
+                endTime = today_str
+            
+            body = {
+                "page": 1,
+                "limit": 100,
+                "id": "",
+                "state": "",
+                "starTime": starTime,
+                "endTime": endTime,
+                "code": "",
+                "overloadRatio": "",
+                "absorptivename": absorptivename,
+                "type": 1
+            }
+            
+            month_count = 0.0
+            month_trips = 0
+            
+            try:
+                response = await client.post(targetUrl, headers=headers, json=body)
+                if response.status_code == 200:
+                    res_data = response.json()
+                    if isinstance(res_data, dict):
+                        res_obj = res_data.get("result")
+                        if isinstance(res_obj, dict):
+                            count_val = res_obj.get("count")
+                            total_val = res_obj.get("total")
+                            if count_val is not None and float(count_val) > 0:
+                                month_count = float(count_val)
+                                month_trips = int(total_val or 0)
+                            else:
+                                records = res_obj.get("records") or res_obj.get("rows") or []
+                                matching = [
+                                    r for r in records
+                                    if isinstance(r, dict) and (
+                                        not absorptivename or 
+                                        absorptivename.lower() in str(r.get("absorptivename") or "").lower() or
+                                        absorptivename.lower() in str(r.get("arriveplace") or "").lower()
+                                    )
+                                ]
+                                month_trips = len(matching)
+                                for r in matching:
+                                    try:
+                                        num_val = float(r.get("transportinoutnum") or 0)
+                                        month_count += num_val
+                                    except (ValueError, TypeError):
+                                        pass
+            except Exception as e:
+                print(f"Error querying month {year}-{month:02d}: {e}")
+                
+            used_total += month_count
+            total_trips += month_trips
+            
+            monthly_results.append({
+                "month": f"{year}-{month:02d}",
+                "month_name": f"{month}月",
+                "starTime": starTime,
+                "endTime": endTime,
+                "count": round(month_count, 2),
+                "trips": month_trips
+            })
+            
+    quotas = _load_absorptive_quotas()
+    matched_quota = quotas.get(absorptivename)
+    if matched_quota is None:
+        for qk, qv in quotas.items():
+            if qk in absorptivename or absorptivename in qk:
+                matched_quota = qv
+                break
+    if matched_quota is None:
+        matched_quota = 50000.0
+        
+    remaining_capacity = max(0.0, round(matched_quota - used_total, 2))
+    usage_percentage = round((used_total / matched_quota * 100), 2) if matched_quota > 0 else 0.0
+    
+    return {
+        "success": True,
+        "year": year,
+        "absorptivename": absorptivename or "全量土点",
+        "total_quota": matched_quota,
+        "used_total": round(used_total, 2),
+        "remaining_capacity": remaining_capacity,
+        "usage_percentage": usage_percentage,
+        "total_trips": total_trips,
+        "monthly_data": monthly_results
+    }
+
+
+DEFAULT_ABSORPTIVE_SITES_CONFIG = [
+    {"name": "妙峰绿水资源化处置厂", "alias": ["妙峰", "绿水"], "total_quota": 10000.0, "expire_date": "2026/12/13"},
+    {"name": "石景山区北辛安路", "alias": ["北辛安"], "total_quota": 127750.0, "expire_date": "2026/7/30"},
+    {"name": "石景山区西黄村棚户", "alias": ["西黄村"], "total_quota": 30000.0, "expire_date": "2026/8/28"},
+    {"name": "石景山区首钢园区东南", "alias": ["首钢"], "total_quota": 30000.0, "expire_date": "2026/8/28"},
+    {"name": "首建恒纪建筑垃圾资源化处置场", "alias": ["首建恒纪", "恒纪"], "total_quota": 260000.0, "expire_date": "2026/12/13"},
+    {"name": "国盛通顺临时资源化处置场", "alias": ["国盛通顺"], "total_quota": 350000.0, "expire_date": "2026/12/13"},
+    {"name": "北京石宇环保科技有限公司临时资源化处置场", "alias": ["石宇环保", "石宇"], "total_quota": 50000.0, "expire_date": "2026/12/13"}
+]
+
+ABSORPTIVE_CONFIG_FILE = os.path.abspath(os.path.join(BASE_DIR, "absorptive_sites_config.json"))
+
+class AbsorptiveMatrixStatsRequest(BaseModel):
+    authtoken: str
+    absorptivename: str = ""
+    year: int = 2026
+    startMonth: int = 5
+    endMonth: int = 8
+    totalProjectVolume: float = 938164.0
+
+def _load_sites_config():
+    if os.path.exists(ABSORPTIVE_CONFIG_FILE):
+        try:
+            with open(ABSORPTIVE_CONFIG_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {
+        "sites": DEFAULT_ABSORPTIVE_SITES_CONFIG,
+        "total_project_volume": 938164.0
+    }
+
+def _save_sites_config(data):
+    try:
+        with open(ABSORPTIVE_CONFIG_FILE, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"Error saving sites config: {e}")
+
+@app.get("/api/absorptive/sites-config")
+async def get_sites_config():
+    return {"success": True, "data": _load_sites_config()}
+
+@app.post("/api/absorptive/sites-config")
+async def update_sites_config(payload: Dict[str, Any] = Body(...)):
+    _save_sites_config(payload)
+    return {"success": True}
+
+@app.post("/api/absorptive/matrix-stats")
+async def query_absorptive_matrix_stats(payload: AbsorptiveMatrixStatsRequest):
+    import calendar
+    from datetime import date
+
+    authtoken = payload.authtoken.strip()
+    filter_site = payload.absorptivename.strip()
+    year = payload.year
+    start_month = max(1, min(12, payload.startMonth))
+    end_month = max(start_month, min(12, payload.endMonth))
+    
+    if not authtoken:
+        raise HTTPException(status_code=400, detail="authtoken 授权密钥不能为空！")
+        
+    config_data = _load_sites_config()
+    sites_list = config_data.get("sites", DEFAULT_ABSORPTIVE_SITES_CONFIG)
+    total_project_volume = float(payload.totalProjectVolume or config_data.get("total_project_volume", 938164.0))
+
+    targetUrl = f"{REMOTE_BASE_URL}/constructionSite/record-waybill/pageList"
+    headers = _remote_headers(authtoken)
+    today_str = date.today().strftime("%Y-%m-%d")
+
+    site_monthly_map = { site["name"]: { month: 0.0 for month in range(start_month, end_month + 1) } for site in sites_list }
+
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        for month in range(start_month, end_month + 1):
+            _, last_day = calendar.monthrange(year, month)
+            starTime = f"{year}-{month:02d}-01"
+            endTime = f"{year}-{month:02d}-{last_day:02d}"
+            
+            if starTime > today_str:
+                continue
+            if endTime > today_str:
+                endTime = today_str
+
+            page = 1
+            limit = 1000
+            while True:
+                body = {
+                    "page": page,
+                    "limit": limit,
+                    "id": "",
+                    "state": "",
+                    "starTime": starTime,
+                    "endTime": endTime,
+                    "code": "",
+                    "overloadRatio": "",
+                    "absorptivename": "",
+                    "type": 1
+                }
+
+                try:
+                    response = await client.post(targetUrl, headers=headers, json=body)
+                    if response.status_code == 200:
+                        res_data = response.json()
+                        if isinstance(res_data, dict):
+                            res_obj = res_data.get("result") or {}
+                            records = res_obj.get("rows") or res_obj.get("records") or []
+                            total_records = res_obj.get("total") or 0
+                            
+                            for r in records:
+                                if not isinstance(r, dict):
+                                    continue
+                                abs_name = str(r.get("absorptivename") or r.get("arriveplace") or "")
+                                vol = 0.0
+                                try:
+                                    vol = float(r.get("transportinoutnum") or 0)
+                                except (ValueError, TypeError):
+                                    pass
+                                
+                                for site in sites_list:
+                                    s_name = site["name"]
+                                    aliases = site.get("alias", [])
+                                    matched = (s_name in abs_name or abs_name in s_name) or any(a in abs_name for a in aliases if a)
+                                    if matched:
+                                        site_monthly_map[s_name][month] += vol
+                                        break
+                                        
+                            if page * limit >= total_records or not records:
+                                break
+                            page += 1
+                        else:
+                            break
+                    else:
+                        break
+                except Exception as e:
+                    print(f"Error querying matrix month {year}-{month:02d} page {page}: {e}")
+                    break
+
+    matrix_rows = []
+    total_handled_capacity = 0.0
+    total_consumed_all = 0.0
+
+    for site in sites_list:
+        s_name = site["name"]
+        quota = float(site.get("total_quota") or 0.0)
+        expire_date = site.get("expire_date", "-")
+        
+        m_counts = {}
+        site_total_consumed = 0.0
+        for m in range(start_month, end_month + 1):
+            val = round(site_monthly_map[s_name][m], 2)
+            m_counts[f"{m}月"] = val
+            site_total_consumed += val
+
+        site_total_consumed = round(site_total_consumed, 2)
+        remaining = round(max(0.0, quota - site_total_consumed), 2)
+        
+        total_handled_capacity += quota
+        total_consumed_all += site_total_consumed
+
+        matrix_rows.append({
+            "name": s_name,
+            "monthly": m_counts,
+            "total_consumed": site_total_consumed,
+            "total_quota": quota,
+            "remaining": remaining,
+            "expire_date": expire_date
+        })
+
+    # Optional filtering by specific land point name if provided
+    if filter_site and filter_site != "全部土点":
+        matrix_rows = [
+            r for r in matrix_rows
+            if filter_site.lower() in r["name"].lower() or r["name"].lower() in filter_site.lower()
+        ]
+
+    unhandled_volume = round(max(0.0, total_project_volume - total_handled_capacity), 2)
+
+    return {
+        "success": True,
+        "year": year,
+        "months": [f"{m}月" for m in range(start_month, end_month + 1)],
+        "matrix": matrix_rows,
+        "summary": {
+            "total_project_volume": round(total_project_volume, 2),
+            "handled_capacity": round(total_handled_capacity, 2),
+            "unhandled_volume": unhandled_volume,
+            "total_consumed": round(total_consumed_all, 2),
+            "total_remaining": round(max(0.0, total_handled_capacity - total_consumed_all), 2)
+        }
+    }
 
 
 QR_DATA_FILE = os.path.abspath(os.path.join(BASE_DIR, "qr_data.json"))

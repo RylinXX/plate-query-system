@@ -337,6 +337,97 @@ body {
     gap: 12px;
 }
 
+.nav-logo-img {
+    height: 38px;
+    width: auto;
+    object-fit: contain;
+    filter: drop-shadow(0 2px 8px rgba(0, 229, 255, 0.35));
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.nav-logo-img:hover {
+    transform: scale(1.08) rotate(2deg);
+}
+
+.landing-brand-logo-img {
+    width: 68px;
+    height: 68px;
+    object-fit: contain;
+    filter: drop-shadow(0 4px 20px rgba(0, 229, 255, 0.5));
+    animation: floatLogoPulse 3.6s ease-in-out infinite;
+}
+
+@keyframes floatLogoPulse {
+    0%, 100% {
+        transform: translateY(0px) scale(1);
+    }
+    50% {
+        transform: translateY(-5px) scale(1.04);
+    }
+}
+
+/* 矩阵 KPI 统计卡片 (深色/浅色白天模式适应) */
+.matrix-kpi-card {
+    background: rgba(15, 34, 55, 0.6);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    padding: 16px 20px;
+    border-radius: 12px;
+    border: 1px solid var(--card-border);
+    transition: all 0.3s ease;
+}
+
+[data-theme="light"] .matrix-kpi-card {
+    background: #ffffff;
+    box-shadow: 0 4px 16px rgba(15, 34, 55, 0.06);
+    border-color: rgba(47, 111, 179, 0.15);
+}
+
+.matrix-kpi-card.cyan {
+    border-color: rgba(0, 229, 255, 0.35);
+}
+[data-theme="light"] .matrix-kpi-card.cyan {
+    border-color: rgba(2, 132, 199, 0.35);
+    background: linear-gradient(135deg, #ffffff 0%, rgba(224, 242, 254, 0.6) 100%);
+}
+
+.matrix-kpi-card.amber {
+    border-color: rgba(251, 191, 36, 0.35);
+}
+[data-theme="light"] .matrix-kpi-card.amber {
+    border-color: rgba(217, 119, 6, 0.35);
+    background: linear-gradient(135deg, #ffffff 0%, rgba(254, 243, 199, 0.6) 100%);
+}
+
+.matrix-kpi-card.red {
+    border-color: rgba(248, 113, 113, 0.35);
+}
+[data-theme="light"] .matrix-kpi-card.red {
+    border-color: rgba(220, 38, 38, 0.35);
+    background: linear-gradient(135deg, #ffffff 0%, rgba(254, 226, 226, 0.6) 100%);
+}
+
+.matrix-kpi-title {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+}
+
+.matrix-kpi-value {
+    font-size: 22px;
+    font-weight: 800;
+    font-family: var(--font-outfit);
+}
+
+.text-amber {
+    color: #fbbf24;
+}
+[data-theme="light"] .text-amber {
+    color: #d97706;
+}
+
 .logo-icon {
     font-size: 24px;
     background: linear-gradient(135deg, var(--neon-blue) 0%, var(--neon-cyan) 100%);
@@ -2604,3 +2695,260 @@ input:checked + .switch-slider:before {
         flex: 1;
     }
 }
+
+/* ==========================================
+   首屏登录控制台 (Login Landing Page) 炫酷样式
+   ========================================== */
+.login-landing-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: calc(100vh - 140px);
+    padding: 30px 16px;
+    animation: fadeIn 0.4s ease-out;
+}
+
+.login-landing-card {
+    width: 100%;
+    max-width: 440px;
+    padding: 36px 32px;
+    border-radius: 20px;
+    background: rgba(13, 27, 44, 0.75);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(0, 229, 255, 0.25);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45), 0 0 30px rgba(0, 229, 255, 0.08);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.login-landing-card:hover {
+    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.55), 0 0 40px rgba(0, 229, 255, 0.15);
+}
+
+.login-landing-header {
+    text-align: center;
+    margin-bottom: 28px;
+}
+
+.login-brand-logo {
+    width: 64px;
+    height: 64px;
+    margin: 0 auto 16px auto;
+    border-radius: 18px;
+    background: linear-gradient(135deg, rgba(0, 229, 255, 0.2), rgba(0, 114, 255, 0.2));
+    border: 1px solid rgba(0, 229, 255, 0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 30px;
+    color: var(--neon-cyan);
+    box-shadow: 0 0 20px rgba(0, 229, 255, 0.3);
+}
+
+.login-landing-title {
+    font-family: 'Outfit', var(--font-inter), sans-serif;
+    font-size: 26px;
+    font-weight: 800;
+    letter-spacing: 2px;
+    color: #ffffff;
+    margin: 0 0 6px 0;
+}
+
+.login-landing-subtitle {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+.login-landing-form .form-group {
+    margin-bottom: 20px;
+}
+
+.login-landing-form label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 8px;
+}
+
+.input-icon-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.input-icon-wrapper .input-icon {
+    position: absolute;
+    left: 14px;
+    color: var(--neon-cyan);
+    font-size: 15px;
+    pointer-events: none;
+    transition: color 0.2s ease;
+}
+
+.form-input-styled {
+    width: 100%;
+    height: 48px;
+    padding: 0 14px 0 42px;
+    border-radius: 10px;
+    border: 1px solid rgba(142, 170, 201, 0.25);
+    background: rgba(8, 17, 30, 0.65);
+    color: var(--text-primary);
+    font-size: 14px;
+    outline: none;
+    transition: all 0.25s ease;
+}
+
+.form-input-styled:focus {
+    border-color: var(--neon-cyan);
+    background: rgba(8, 17, 30, 0.85);
+    box-shadow: 0 0 14px rgba(0, 229, 255, 0.25);
+}
+
+.captcha-flex-row {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.captcha-input-wrap {
+    flex: 1;
+}
+
+.captcha-img-container {
+    position: relative;
+    width: 130px;
+    height: 48px;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid rgba(0, 229, 255, 0.3);
+    background: rgba(5, 12, 22, 0.8);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: border-color 0.2s ease;
+}
+
+.captcha-img-container img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.captcha-spin-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--neon-cyan);
+    font-size: 16px;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.captcha-img-container:hover .captcha-spin-overlay {
+    opacity: 1;
+}
+
+.login-status-msg {
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    margin-bottom: 18px;
+    line-height: 1.4;
+}
+
+.login-status-msg.error {
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid rgba(239, 68, 68, 0.4);
+    color: #fca5a5;
+}
+
+.login-status-msg.success {
+    background: rgba(34, 197, 94, 0.15);
+    border: 1px solid rgba(34, 197, 94, 0.4);
+    color: #86efac;
+}
+
+.login-submit-btn {
+    width: 100%;
+    height: 50px;
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    border-radius: 10px;
+    margin-top: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    box-shadow: 0 4px 18px rgba(0, 229, 255, 0.35);
+}
+
+.login-landing-footer {
+    margin-top: 24px;
+    padding-top: 16px;
+    border-top: 1px solid rgba(142, 170, 201, 0.15);
+    text-align: center;
+}
+
+.footer-info-item {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+/* User status badge in header */
+.user-status-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 12px;
+    background: rgba(0, 229, 255, 0.1);
+    border: 1px solid rgba(0, 229, 255, 0.3);
+    border-radius: 20px;
+    font-size: 13px;
+    color: var(--neon-cyan);
+}
+
+.logout-btn {
+    padding: 3px 8px;
+    font-size: 11px;
+    margin-left: 4px;
+}
+
+/* Day mode overrides for login landing */
+[data-theme="light"] .login-landing-card {
+    background: rgba(255, 255, 255, 0.88);
+    border-color: rgba(0, 102, 255, 0.25);
+    box-shadow: 0 20px 50px rgba(0, 60, 120, 0.15);
+}
+
+[data-theme="light"] .login-landing-title {
+    color: #1e293b;
+}
+
+[data-theme="light"] .form-input-styled {
+    background: rgba(241, 245, 249, 0.9);
+    border-color: rgba(203, 213, 225, 0.8);
+    color: #0f172a;
+}
+
+[data-theme="light"] .form-input-styled:focus {
+    background: #ffffff;
+    border-color: #0066ff;
+    box-shadow: 0 0 14px rgba(0, 102, 255, 0.2);
+}
+
+[data-theme="light"] .captcha-img-container {
+    background: #f8fafc;
+    border-color: rgba(0, 102, 255, 0.3);
+}
+
