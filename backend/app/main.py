@@ -954,6 +954,34 @@ def _save_matrix_cache(data):
     except Exception as e:
         print(f"Error saving matrix cache: {e}")
 
+def _sort_matrix_by_expiration(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """
+    根据到期时间排序：
+    1. 快到期（未过期）的排在最前面，按到期时间升序（越早到期越排前）；
+    2. 已经过期的排在最后面；
+    3. 未设置到期日期的排在末尾。
+    """
+    from datetime import date
+    today = date.today()
+
+    def get_sort_key(row):
+        exp_str = str(row.get("expire_date", "") or "").strip()
+        try:
+            parts = exp_str.replace("-", "/").split("/")
+            if len(parts) == 3:
+                exp_d = date(int(parts[0]), int(parts[1]), int(parts[2]))
+                if exp_d >= today:
+                    # 未过期/有效：优先级 0，越早到期越排在前面
+                    return (0, exp_d)
+                else:
+                    # 已过期：优先级 1，排在最后面
+                    return (1, exp_d)
+        except Exception:
+            pass
+        return (2, date.max)
+
+    return sorted(rows, key=get_sort_key)
+
 @app.get("/api/absorptive/sites-config")
 async def get_sites_config():
     return {"success": True, "data": _load_sites_config()}
@@ -970,13 +998,14 @@ async def get_local_matrix_cache():
     """
     cache = _load_matrix_cache()
     if cache and cache.get("matrix"):
+        sorted_matrix = _sort_matrix_by_expiration(cache.get("matrix", []))
         return {
             "success": True,
             "has_data": True,
             "last_updated": cache.get("last_updated", ""),
             "year": cache.get("year", 2026),
             "months": cache.get("months", ["5月", "6月", "7月", "8月"]),
-            "matrix": cache.get("matrix", []),
+            "matrix": sorted_matrix,
             "summary": cache.get("summary", {})
         }
     
@@ -998,6 +1027,24 @@ async def get_local_matrix_cache():
             "remaining": q,
             "expire_date": s.get("expire_date", "-")
         })
+
+    sorted_default_rows = _sort_matrix_by_expiration(default_rows)
+
+    return {
+        "success": True,
+        "has_data": False,
+        "last_updated": "",
+        "year": 2026,
+        "months": months,
+        "matrix": sorted_default_rows,
+        "summary": {
+            "total_project_volume": round(total_project_volume, 2),
+            "handled_capacity": round(total_handled_capacity, 2),
+            "unhandled_volume": round(max(0.0, total_project_volume - total_handled_capacity), 2),
+            "total_consumed": 0.0,
+            "total_remaining": round(total_handled_capacity, 2)
+        }
+    }
 
     return {
         "success": True,
@@ -1134,6 +1181,9 @@ async def query_absorptive_matrix_stats(payload: AbsorptiveMatrixStatsRequest):
             "remaining": remaining,
             "expire_date": expire_date
         })
+
+    # 根据到期时间排序：快到期的排在前面，已过期的排在最后面
+    all_matrix_rows = _sort_matrix_by_expiration(all_matrix_rows)
 
     unhandled_volume = round(max(0.0, total_project_volume - total_handled_capacity), 2)
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")

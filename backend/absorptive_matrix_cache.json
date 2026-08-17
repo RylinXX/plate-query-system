@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-08-17 21:58:34",
+  "last_updated": "2026-08-17 22:03:26",
   "year": 2026,
   "months": [
     "5月",
@@ -11,27 +11,27 @@
     {
       "name": "妙峰绿水资源化处置厂",
       "monthly": {
-        "5月": 0.0,
-        "6月": 0.0,
+        "5月": 1664.11,
+        "6月": 1827.62,
         "7月": 0.0,
         "8月": 0.0
       },
-      "total_consumed": 0.0,
+      "total_consumed": 3491.73,
       "total_quota": 10000.0,
-      "remaining": 10000.0,
+      "remaining": 6508.27,
       "expire_date": "2026/12/13"
     },
     {
       "name": "石景山区北辛安路",
       "monthly": {
-        "5月": 0.0,
-        "6月": 0.0,
+        "5月": 11524.8,
+        "6月": 50508.9,
         "7月": 0.0,
         "8月": 0.0
       },
-      "total_consumed": 0.0,
+      "total_consumed": 62033.7,
       "total_quota": 127750.0,
-      "remaining": 127750.0,
+      "remaining": 65716.3,
       "expire_date": "2026/7/30"
     },
     {
@@ -40,24 +40,24 @@
         "5月": 0.0,
         "6月": 0.0,
         "7月": 0.0,
-        "8月": 0.0
+        "8月": 509.0
       },
-      "total_consumed": 0.0,
+      "total_consumed": 509.0,
       "total_quota": 30000.0,
-      "remaining": 30000.0,
+      "remaining": 29491.0,
       "expire_date": "2026/8/28"
     },
     {
       "name": "石景山区首钢园区东南",
       "monthly": {
         "5月": 0.0,
-        "6月": 0.0,
+        "6月": 23597.73,
         "7月": 0.0,
-        "8月": 0.0
+        "8月": 60.0
       },
-      "total_consumed": 0.0,
+      "total_consumed": 23657.73,
       "total_quota": 30000.0,
-      "remaining": 30000.0,
+      "remaining": 6342.27,
       "expire_date": "2026/8/28"
     },
     {
@@ -66,11 +66,11 @@
         "5月": 0.0,
         "6月": 0.0,
         "7月": 0.0,
-        "8月": 0.0
+        "8月": 39379.08
       },
-      "total_consumed": 0.0,
+      "total_consumed": 39379.08,
       "total_quota": 260000.0,
-      "remaining": 260000.0,
+      "remaining": 220620.92,
       "expire_date": "2026/12/13"
     },
     {
@@ -104,7 +104,7 @@
     "total_project_volume": 938164.0,
     "handled_capacity": 857750.0,
     "unhandled_volume": 80414.0,
-    "total_consumed": 0.0,
-    "total_remaining": 857750.0
+    "total_consumed": 129071.24,
+    "total_remaining": 728678.76
   }
 }

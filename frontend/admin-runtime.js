@@ -990,9 +990,80 @@ function setAbsorptiveViewMode(mode) {
     }
 }
 
+function sortMatrixRowsByExpiration(rows) {
+    if (!rows || !Array.isArray(rows)) return [];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    return [...rows].sort((a, b) => {
+        const parseDate = (dStr) => {
+            if (!dStr || dStr === "-" || typeof dStr !== "string") return null;
+            const parts = dStr.replace(/-/g, "/").split("/");
+            if (parts.length === 3) {
+                const y = parseInt(parts[0]);
+                const m = parseInt(parts[1]) - 1;
+                const d = parseInt(parts[2]);
+                if (!isNaN(y) && !isNaN(m) && !isNaN(d)) {
+                    return new Date(y, m, d);
+                }
+            }
+            return null;
+        };
+
+        const dateA = parseDate(a.expire_date);
+        const dateB = parseDate(b.expire_date);
+
+        const isExpiredA = dateA && dateA < today;
+        const isExpiredB = dateB && dateB < today;
+
+        // 1. 如果一个已过期，一个未过期：未过期的排在前面，已过期的排在最后面
+        if (!isExpiredA && isExpiredB) return -1;
+        if (isExpiredA && !isExpiredB) return 1;
+
+        // 2. 两个都未过期：快到期的排在前面（按到期时间升序）
+        if (!isExpiredA && !isExpiredB) {
+            if (dateA && dateB) return dateA - dateB;
+            if (dateA) return -1;
+            if (dateB) return 1;
+            return 0;
+        }
+
+        // 3. 两个都已过期：按到期日期先后排列在末尾
+        if (dateA && dateB) return dateA - dateB;
+        return 0;
+    });
+}
+
+function getExpireStatusBadge(expireDateStr) {
+    if (!expireDateStr || expireDateStr === "-") {
+        return `<span class="badge" style="background: rgba(142, 170, 201, 0.1); color: var(--text-secondary); border: 1px solid rgba(142, 170, 201, 0.2);">长期 / 未设</span>`;
+    }
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const parts = String(expireDateStr).replace(/-/g, "/").split("/");
+    if (parts.length === 3) {
+        const expDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+        if (!isNaN(expDate.getTime())) {
+            const diffDays = Math.ceil((expDate - today) / (1000 * 60 * 60 * 24));
+
+            if (diffDays < 0) {
+                return `<span class="badge" style="background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.35); font-weight: 700; white-space: nowrap;"><i class="fa-solid fa-circle-xmark"></i> 已过期 (${escapeHtml(expireDateStr)})</span>`;
+            } else if (diffDays <= 30) {
+                return `<span class="badge" style="background: rgba(251, 191, 36, 0.15); color: #fbbf24; border: 1px solid rgba(251,191,36,0.4); font-weight: 700; white-space: nowrap;"><i class="fa-solid fa-triangle-exclamation"></i> 快到期 (剩${diffDays}天: ${escapeHtml(expireDateStr)})</span>`;
+            } else {
+                return `<span class="badge" style="background: rgba(0, 229, 255, 0.1); color: var(--neon-cyan); border: 1px solid rgba(0,229,255,0.25); white-space: nowrap;"><i class="fa-solid fa-circle-check"></i> 有效至: ${escapeHtml(expireDateStr)}</span>`;
+            }
+        }
+    }
+    return `<span class="badge" style="background: rgba(142, 170, 201, 0.1); color: var(--text-secondary); border: 1px solid rgba(142, 170, 201, 0.2);">${escapeHtml(expireDateStr)}</span>`;
+}
+
 function renderMatrixMobileCards(matrixRows, months) {
     if (!dom.absorptiveMobileCardsContainer) return;
-    if (!matrixRows || !matrixRows.length) {
+    const sortedRows = sortMatrixRowsByExpiration(matrixRows);
+
+    if (!sortedRows || !sortedRows.length) {
         dom.absorptiveMobileCardsContainer.innerHTML = `
             <div class="glass-panel" style="text-align: center; padding: 30px 20px; color: var(--text-secondary);">
                 <i class="fa-solid fa-folder-open" style="font-size: 32px; margin-bottom: 8px; opacity: 0.5;"></i>
@@ -1002,7 +1073,7 @@ function renderMatrixMobileCards(matrixRows, months) {
         return;
     }
 
-    dom.absorptiveMobileCardsContainer.innerHTML = matrixRows.map(row => {
+    dom.absorptiveMobileCardsContainer.innerHTML = sortedRows.map(row => {
         const quota = row.total_quota || 0;
         const consumed = row.total_consumed || 0;
         const remaining = row.remaining !== undefined ? row.remaining : Math.max(0, quota - consumed);
@@ -1033,7 +1104,7 @@ function renderMatrixMobileCards(matrixRows, months) {
                         <i class="fa-solid fa-mountain-city text-cyan"></i>
                         <span>${escapeHtml(row.name)}</span>
                     </div>
-                    <span class="site-card-expire">到期: ${escapeHtml(row.expire_date || "-")}</span>
+                    <div>${getExpireStatusBadge(row.expire_date)}</div>
                 </div>
 
                 <div class="site-card-progress-wrap">
@@ -1076,7 +1147,8 @@ function renderMatrixUI(data, isFromCache = false) {
     if (dom.matrixProjectVolume) dom.matrixProjectVolume.textContent = `${projVol.toLocaleString('zh-CN', {minimumFractionDigits: 2, maximumFractionDigits: 2})} m³`;
     if (dom.matrixUnhandledVolume) dom.matrixUnhandledVolume.textContent = `${unhandledVol.toLocaleString('zh-CN', {minimumFractionDigits: 2, maximumFractionDigits: 2})} m³`;
 
-    const matrixRows = data.matrix || [];
+    const rawRows = data.matrix || [];
+    const matrixRows = sortMatrixRowsByExpiration(rawRows);
     const months = data.months || ["5月", "6月", "7月", "8月"];
 
     // Update Cache Snapshot Banner
@@ -1105,7 +1177,7 @@ function renderMatrixUI(data, isFromCache = false) {
             <th style="width: 120px; text-align: right; background: rgba(0,229,255,0.05);">合计消耗</th>
             <th style="width: 120px; text-align: right;">总容量</th>
             <th style="width: 120px; text-align: right; background: rgba(239,68,68,0.05);">剩余量</th>
-            <th style="width: 110px; text-align: center;">到期时间</th>
+            <th style="min-width: 140px; text-align: center;">到期状态</th>
         `;
         headerRow.innerHTML = headerHtml;
     }
@@ -1141,7 +1213,7 @@ function renderMatrixUI(data, isFromCache = false) {
                         <td style="text-align: right; font-weight: 800; font-family: var(--font-outfit); background: rgba(0,229,255,0.03); color: var(--text-primary);">${row.total_consumed.toLocaleString()}</td>
                         <td style="text-align: right; font-weight: 700; font-family: var(--font-outfit);">${row.total_quota.toLocaleString()}</td>
                         <td style="text-align: right; font-family: var(--font-outfit); ${remainingStyle} background: rgba(239,68,68,0.03);">${row.remaining.toLocaleString()}</td>
-                        <td style="text-align: center; font-size: 12px; color: var(--text-secondary);">${escapeHtml(row.expire_date)}</td>
+                        <td style="text-align: center;">${getExpireStatusBadge(row.expire_date)}</td>
                     </tr>
                 `;
             }).join("");
