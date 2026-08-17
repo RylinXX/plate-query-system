@@ -1,0 +1,110 @@
+{
+  "last_updated": "2026-08-17 21:58:34",
+  "year": 2026,
+  "months": [
+    "5月",
+    "6月",
+    "7月",
+    "8月"
+  ],
+  "matrix": [
+    {
+      "name": "妙峰绿水资源化处置厂",
+      "monthly": {
+        "5月": 0.0,
+        "6月": 0.0,
+        "7月": 0.0,
+        "8月": 0.0
+      },
+      "total_consumed": 0.0,
+      "total_quota": 10000.0,
+      "remaining": 10000.0,
+      "expire_date": "2026/12/13"
+    },
+    {
+      "name": "石景山区北辛安路",
+      "monthly": {
+        "5月": 0.0,
+        "6月": 0.0,
+        "7月": 0.0,
+        "8月": 0.0
+      },
+      "total_consumed": 0.0,
+      "total_quota": 127750.0,
+      "remaining": 127750.0,
+      "expire_date": "2026/7/30"
+    },
+    {
+      "name": "石景山区西黄村棚户",
+      "monthly": {
+        "5月": 0.0,
+        "6月": 0.0,
+        "7月": 0.0,
+        "8月": 0.0
+      },
+      "total_consumed": 0.0,
+      "total_quota": 30000.0,
+      "remaining": 30000.0,
+      "expire_date": "2026/8/28"
+    },
+    {
+      "name": "石景山区首钢园区东南",
+      "monthly": {
+        "5月": 0.0,
+        "6月": 0.0,
+        "7月": 0.0,
+        "8月": 0.0
+      },
+      "total_consumed": 0.0,
+      "total_quota": 30000.0,
+      "remaining": 30000.0,
+      "expire_date": "2026/8/28"
+    },
+    {
+      "name": "首建恒纪建筑垃圾资源化处置场",
+      "monthly": {
+        "5月": 0.0,
+        "6月": 0.0,
+        "7月": 0.0,
+        "8月": 0.0
+      },
+      "total_consumed": 0.0,
+      "total_quota": 260000.0,
+      "remaining": 260000.0,
+      "expire_date": "2026/12/13"
+    },
+    {
+      "name": "国盛通顺临时资源化处置场",
+      "monthly": {
+        "5月": 0.0,
+        "6月": 0.0,
+        "7月": 0.0,
+        "8月": 0.0
+      },
+      "total_consumed": 0.0,
+      "total_quota": 350000.0,
+      "remaining": 350000.0,
+      "expire_date": "2026/12/13"
+    },
+    {
+      "name": "北京石宇环保科技有限公司临时资源化处置场",
+      "monthly": {
+        "5月": 0.0,
+        "6月": 0.0,
+        "7月": 0.0,
+        "8月": 0.0
+      },
+      "total_consumed": 0.0,
+      "total_quota": 50000.0,
+      "remaining": 50000.0,
+      "expire_date": "2026/12/13"
+    }
+  ],
+  "summary": {
+    "total_project_volume": 938164.0,
+    "handled_capacity": 857750.0,
+    "unhandled_volume": 80414.0,
+    "total_consumed": 0.0,
+    "total_remaining": 857750.0
+  }
+}

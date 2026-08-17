@@ -909,6 +909,7 @@ DEFAULT_ABSORPTIVE_SITES_CONFIG = [
 ]
 
 ABSORPTIVE_CONFIG_FILE = os.path.abspath(os.path.join(BASE_DIR, "absorptive_sites_config.json"))
+ABSORPTIVE_MATRIX_CACHE_FILE = os.path.abspath(os.path.join(BASE_DIR, "absorptive_matrix_cache.json"))
 
 class AbsorptiveMatrixStatsRequest(BaseModel):
     authtoken: str
@@ -937,6 +938,22 @@ def _save_sites_config(data):
     except Exception as e:
         print(f"Error saving sites config: {e}")
 
+def _load_matrix_cache():
+    if os.path.exists(ABSORPTIVE_MATRIX_CACHE_FILE):
+        try:
+            with open(ABSORPTIVE_MATRIX_CACHE_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return None
+
+def _save_matrix_cache(data):
+    try:
+        with open(ABSORPTIVE_MATRIX_CACHE_FILE, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"Error saving matrix cache: {e}")
+
 @app.get("/api/absorptive/sites-config")
 async def get_sites_config():
     return {"success": True, "data": _load_sites_config()}
@@ -946,10 +963,62 @@ async def update_sites_config(payload: Dict[str, Any] = Body(...)):
     _save_sites_config(payload)
     return {"success": True}
 
+@app.get("/api/absorptive/local-matrix")
+async def get_local_matrix_cache():
+    """
+    获取本地已持久化保存的土点矩阵数据快照，供前端首屏瞬时秒开展示，避免每次重复调用接口。
+    """
+    cache = _load_matrix_cache()
+    if cache and cache.get("matrix"):
+        return {
+            "success": True,
+            "has_data": True,
+            "last_updated": cache.get("last_updated", ""),
+            "year": cache.get("year", 2026),
+            "months": cache.get("months", ["5月", "6月", "7月", "8月"]),
+            "matrix": cache.get("matrix", []),
+            "summary": cache.get("summary", {})
+        }
+    
+    # 暂无缓存时返回预置模版（方量为0），页面即刻成型无需白屏
+    config_data = _load_sites_config()
+    sites_list = config_data.get("sites", DEFAULT_ABSORPTIVE_SITES_CONFIG)
+    total_project_volume = float(config_data.get("total_project_volume", 938164.0))
+    months = ["5月", "6月", "7月", "8月"]
+    default_rows = []
+    total_handled_capacity = 0.0
+    for s in sites_list:
+        q = float(s.get("total_quota") or 0.0)
+        total_handled_capacity += q
+        default_rows.append({
+            "name": s["name"],
+            "monthly": { m: 0.0 for m in months },
+            "total_consumed": 0.0,
+            "total_quota": q,
+            "remaining": q,
+            "expire_date": s.get("expire_date", "-")
+        })
+
+    return {
+        "success": True,
+        "has_data": False,
+        "last_updated": "",
+        "year": 2026,
+        "months": months,
+        "matrix": default_rows,
+        "summary": {
+            "total_project_volume": round(total_project_volume, 2),
+            "handled_capacity": round(total_handled_capacity, 2),
+            "unhandled_volume": round(max(0.0, total_project_volume - total_handled_capacity), 2),
+            "total_consumed": 0.0,
+            "total_remaining": round(total_handled_capacity, 2)
+        }
+    }
+
 @app.post("/api/absorptive/matrix-stats")
 async def query_absorptive_matrix_stats(payload: AbsorptiveMatrixStatsRequest):
     import calendar
-    from datetime import date
+    from datetime import date, datetime
 
     authtoken = payload.authtoken.strip()
     filter_site = payload.absorptivename.strip()
@@ -1035,7 +1104,7 @@ async def query_absorptive_matrix_stats(payload: AbsorptiveMatrixStatsRequest):
                     print(f"Error querying matrix month {year}-{month:02d} page {page}: {e}")
                     break
 
-    matrix_rows = []
+    all_matrix_rows = []
     total_handled_capacity = 0.0
     total_consumed_all = 0.0
 
@@ -1057,7 +1126,7 @@ async def query_absorptive_matrix_stats(payload: AbsorptiveMatrixStatsRequest):
         total_handled_capacity += quota
         total_consumed_all += site_total_consumed
 
-        matrix_rows.append({
+        all_matrix_rows.append({
             "name": s_name,
             "monthly": m_counts,
             "total_consumed": site_total_consumed,
@@ -1066,27 +1135,43 @@ async def query_absorptive_matrix_stats(payload: AbsorptiveMatrixStatsRequest):
             "expire_date": expire_date
         })
 
+    unhandled_volume = round(max(0.0, total_project_volume - total_handled_capacity), 2)
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    summary_data = {
+        "total_project_volume": round(total_project_volume, 2),
+        "handled_capacity": round(total_handled_capacity, 2),
+        "unhandled_volume": unhandled_volume,
+        "total_consumed": round(total_consumed_all, 2),
+        "total_remaining": round(max(0.0, total_handled_capacity - total_consumed_all), 2)
+    }
+
+    # 自动持久化全量缓存（当查询全部土点时保存完整快照）
+    if not filter_site or filter_site == "全部土点":
+        _save_matrix_cache({
+            "last_updated": now_str,
+            "year": year,
+            "months": [f"{m}月" for m in range(start_month, end_month + 1)],
+            "matrix": all_matrix_rows,
+            "summary": summary_data
+        })
+
+    display_rows = all_matrix_rows
     # Optional filtering by specific land point name if provided
     if filter_site and filter_site != "全部土点":
-        matrix_rows = [
-            r for r in matrix_rows
+        display_rows = [
+            r for r in all_matrix_rows
             if filter_site.lower() in r["name"].lower() or r["name"].lower() in filter_site.lower()
         ]
 
-    unhandled_volume = round(max(0.0, total_project_volume - total_handled_capacity), 2)
-
     return {
         "success": True,
+        "has_data": True,
+        "last_updated": now_str,
         "year": year,
         "months": [f"{m}月" for m in range(start_month, end_month + 1)],
-        "matrix": matrix_rows,
-        "summary": {
-            "total_project_volume": round(total_project_volume, 2),
-            "handled_capacity": round(total_handled_capacity, 2),
-            "unhandled_volume": unhandled_volume,
-            "total_consumed": round(total_consumed_all, 2),
-            "total_remaining": round(max(0.0, total_handled_capacity - total_consumed_all), 2)
-        }
+        "matrix": display_rows,
+        "summary": summary_data
     }
 
 

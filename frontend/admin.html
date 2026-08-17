@@ -481,12 +481,33 @@
         <div id="absorptivePage" class="admin-vertical-layout" style="display: none;">
             <!-- 全土点月度消纳量与余量汇总大表 (Excel 矩阵汇总) -->
             <section class="glass-panel">
-                <div class="table-panel-header" style="margin-bottom: 20px; border-bottom: 1px solid rgba(142, 170, 201, 0.15); padding-bottom: 16px;">
+                <div class="table-panel-header" style="margin-bottom: 16px; border-bottom: 1px solid rgba(142, 170, 201, 0.15); padding-bottom: 16px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
                     <div class="table-header-left">
                         <h2 class="table-panel-title">
                             <i class="fa-solid fa-table-cells logo-icon-cyan"></i> 土点容量与月度消纳量管控表
                         </h2>
-                        <p class="table-panel-subtitle">支持查询指定土点、指定月份的消纳消耗量，以及全土点总容量与剩余量矩阵</p>
+                        <p class="table-panel-subtitle">支持查询指定土点、指定月份消纳量，数据自动保存本地，移动端已适配卡片视图</p>
+                    </div>
+                    <div class="table-header-right" style="display: flex; gap: 10px; align-items: center;">
+                        <div class="view-mode-toggle" id="absorptiveViewToggle">
+                            <button class="view-toggle-btn active" id="viewModeTableBtn" type="button">
+                                <i class="fa-solid fa-table-cells"></i> <span class="btn-text">矩阵大表</span>
+                            </button>
+                            <button class="view-toggle-btn" id="viewModeCardBtn" type="button">
+                                <i class="fa-solid fa-mobile-screen"></i> <span class="btn-text">手机卡片</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 数据快照与缓存状态横幅 -->
+                <div id="absorptiveSnapshotBanner" class="snapshot-banner">
+                    <div class="snapshot-info">
+                        <i class="fa-solid fa-database text-cyan"></i>
+                        <span id="absorptiveCacheTimeText">正在加载本地数据快照...</span>
+                    </div>
+                    <div class="snapshot-status-pill" id="absorptiveCacheStatusPill">
+                        <span class="badge badge-success">⚡ 秒开缓存</span>
                     </div>
                 </div>
 
@@ -547,7 +568,7 @@
                 </div>
 
                 <!-- 项目总体额度卡片 (已办理 / 产生总量 / 未办理) -->
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 20px;">
+                <div class="matrix-kpi-grid">
                     <div class="matrix-kpi-card cyan">
                         <span class="matrix-kpi-title">已办理额度容量 (7大土点总容量)</span>
                         <div class="matrix-kpi-value text-cyan" id="matrixHandledCapacity">857,750.00 m³</div>
@@ -562,12 +583,20 @@
                     </div>
                 </div>
 
-                <!-- 矩阵表格 -->
-                <div class="table-responsive">
-                    <table class="modern-table">
+                <!-- 移动端专属土点卡片容器 (手机端自适应) -->
+                <div id="absorptiveMobileCardsContainer" class="mobile-matrix-cards" style="display: none;">
+                    <!-- 动态生成移动端卡片 -->
+                </div>
+
+                <!-- 宽屏矩阵表格容器 -->
+                <div id="absorptiveTableContainer" class="table-responsive absorptive-table-wrap">
+                    <div class="table-scroll-hint mobile-only">
+                        <i class="fa-solid fa-arrows-left-right"></i> 左右滑动可查看各月份数据
+                    </div>
+                    <table class="modern-table matrix-table">
                         <thead>
                             <tr id="absorptiveMatrixHeaderRow">
-                                <th style="text-align: left; min-width: 220px;">土点名称</th>
+                                <th class="sticky-col" style="text-align: left; min-width: 200px;">土点名称</th>
                                 <th style="width: 100px; text-align: right;">5月</th>
                                 <th style="width: 100px; text-align: right;">6月</th>
                                 <th style="width: 100px; text-align: right;">7月</th>
@@ -582,7 +611,7 @@
                             <tr>
                                 <td colspan="9" class="table-empty">
                                     <i class="fa-solid fa-folder-open empty-icon"></i>
-                                    <p>点击上方【查询指定消纳量】拉取最新 7大土点消纳汇总表</p>
+                                    <p>正在读取本地缓存土点数据...</p>
                                 </td>
                             </tr>
                         </tbody>

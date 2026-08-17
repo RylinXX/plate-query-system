@@ -2952,3 +2952,254 @@ input:checked + .switch-slider:before {
     border-color: rgba(0, 102, 255, 0.3);
 }
 
+/* ==========================================================================
+   土点容量分析：数据缓存横幅、视图切换器与移动端卡片专属样式
+   ========================================================================== */
+
+/* 1. 缓存快照横幅 */
+.snapshot-banner {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(0, 229, 255, 0.06);
+    border: 1px solid rgba(0, 229, 255, 0.2);
+    border-radius: 10px;
+    padding: 10px 16px;
+    margin-bottom: 20px;
+    font-size: 13px;
+    color: var(--text-primary);
+    transition: all 0.3s ease;
+}
+
+[data-theme="light"] .snapshot-banner {
+    background: rgba(224, 242, 254, 0.7);
+    border-color: rgba(2, 132, 199, 0.25);
+    color: #0f172a;
+}
+
+.snapshot-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 500;
+}
+
+/* 2. 视图切换组件 (矩阵大表 / 手机卡片) */
+.view-mode-toggle {
+    display: inline-flex;
+    background: rgba(15, 34, 55, 0.6);
+    border: 1px solid var(--card-border);
+    border-radius: 8px;
+    padding: 3px;
+    gap: 4px;
+}
+
+[data-theme="light"] .view-mode-toggle {
+    background: rgba(241, 245, 249, 0.95);
+    border-color: rgba(47, 111, 179, 0.2);
+}
+
+.view-toggle-btn {
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s ease;
+}
+
+.view-toggle-btn:hover {
+    color: var(--text-primary);
+}
+
+.view-toggle-btn.active {
+    background: var(--neon-blue);
+    color: #ffffff;
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.4);
+}
+
+/* 3. 总体额度网格 */
+.matrix-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+/* 4. 移动端土点专属卡片列表 */
+.mobile-matrix-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    margin-bottom: 20px;
+}
+
+.site-mobile-card {
+    background: rgba(15, 34, 55, 0.55);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.site-mobile-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+
+[data-theme="light"] .site-mobile-card {
+    background: #ffffff;
+    border-color: rgba(47, 111, 179, 0.15);
+    box-shadow: 0 4px 16px rgba(15, 34, 55, 0.05);
+}
+
+.site-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+.site-card-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    line-height: 1.4;
+}
+
+.site-card-expire {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 12px;
+    background: rgba(142, 170, 201, 0.12);
+    color: var(--text-secondary);
+    white-space: nowrap;
+    border: 1px solid rgba(142, 170, 201, 0.2);
+}
+
+/* 进度条与容量指标 */
+.site-card-progress-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.site-progress-bar-bg {
+    height: 8px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 6px;
+    overflow: hidden;
+    position: relative;
+}
+
+[data-theme="light"] .site-progress-bar-bg {
+    background: #e2e8f0;
+}
+
+.site-progress-bar-fill {
+    height: 100%;
+    border-radius: 6px;
+    transition: width 0.6s ease;
+}
+
+.site-progress-stats {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+/* 月度消纳网格 */
+.site-month-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+    gap: 8px;
+    background: rgba(0, 0, 0, 0.15);
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+[data-theme="light"] .site-month-grid {
+    background: #f8fafc;
+    border-color: #e2e8f0;
+}
+
+.site-month-chip {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+}
+
+.site-month-label {
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+
+.site-month-val {
+    font-size: 13px;
+    font-weight: 700;
+    font-family: var(--font-outfit);
+    color: var(--text-primary);
+}
+
+.site-card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 10px;
+    border-top: 1px solid rgba(142, 170, 201, 0.12);
+    font-size: 13px;
+}
+
+.table-scroll-hint {
+    display: none;
+    font-size: 12px;
+    color: var(--neon-cyan);
+    text-align: center;
+    padding: 6px 0;
+    margin-bottom: 8px;
+    background: rgba(0, 229, 255, 0.05);
+    border-radius: 6px;
+}
+
+/* 5. 响应式布局优化 (针对手机屏幕 < 768px) */
+@media screen and (max-width: 768px) {
+    .table-scroll-hint.mobile-only {
+        display: block;
+    }
+
+    .matrix-kpi-grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    .matrix-table .sticky-col {
+        position: sticky;
+        left: 0;
+        z-index: 2;
+        background: rgba(10, 25, 47, 0.98);
+        box-shadow: 2px 0 8px rgba(0, 0, 0, 0.3);
+    }
+
+    [data-theme="light"] .matrix-table .sticky-col {
+        background: #ffffff;
+        box-shadow: 2px 0 8px rgba(0, 0, 0, 0.06);
+    }
+}
+
