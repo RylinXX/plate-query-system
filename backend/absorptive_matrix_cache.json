@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-08-17 22:03:26",
+  "last_updated": "2026-08-17 22:07:07",
   "year": 2026,
   "months": [
     "5月",
@@ -26,12 +26,12 @@
       "monthly": {
         "5月": 11524.8,
         "6月": 50508.9,
-        "7月": 0.0,
+        "7月": 65883.3,
         "8月": 0.0
       },
-      "total_consumed": 62033.7,
+      "total_consumed": 127917.0,
       "total_quota": 127750.0,
-      "remaining": 65716.3,
+      "remaining": 0.0,
       "expire_date": "2026/7/30"
     },
     {
@@ -39,12 +39,12 @@
       "monthly": {
         "5月": 0.0,
         "6月": 0.0,
-        "7月": 0.0,
+        "7月": 3721.0,
         "8月": 509.0
       },
-      "total_consumed": 509.0,
+      "total_consumed": 4230.0,
       "total_quota": 30000.0,
-      "remaining": 29491.0,
+      "remaining": 25770.0,
       "expire_date": "2026/8/28"
     },
     {
@@ -52,12 +52,12 @@
       "monthly": {
         "5月": 0.0,
         "6月": 23597.73,
-        "7月": 0.0,
+        "7月": 359.5,
         "8月": 60.0
       },
-      "total_consumed": 23657.73,
+      "total_consumed": 24017.23,
       "total_quota": 30000.0,
-      "remaining": 6342.27,
+      "remaining": 5982.77,
       "expire_date": "2026/8/28"
     },
     {
@@ -65,12 +65,12 @@
       "monthly": {
         "5月": 0.0,
         "6月": 0.0,
-        "7月": 0.0,
+        "7月": 10043.54,
         "8月": 39379.08
       },
-      "total_consumed": 39379.08,
+      "total_consumed": 49422.62,
       "total_quota": 260000.0,
-      "remaining": 220620.92,
+      "remaining": 210577.38,
       "expire_date": "2026/12/13"
     },
     {
@@ -104,7 +104,7 @@
     "total_project_volume": 938164.0,
     "handled_capacity": 857750.0,
     "unhandled_volume": 80414.0,
-    "total_consumed": 129071.24,
-    "total_remaining": 728678.76
+    "total_consumed": 209078.58,
+    "total_remaining": 648671.42
   }
 }

@@ -3064,6 +3064,17 @@ input:checked + .switch-slider:before {
     box-shadow: 0 4px 16px rgba(15, 34, 55, 0.05);
 }
 
+[data-theme="light"] .stat-period-pill {
+    background: #ffffff !important;
+    border-color: rgba(47, 111, 179, 0.2) !important;
+    color: #0f172a !important;
+}
+
+[data-theme="light"] .site-card-hero-metric {
+    background: rgba(240, 253, 250, 0.8) !important;
+    border-color: rgba(13, 148, 136, 0.25) !important;
+}
+
 .site-card-header {
     display: flex;
     justify-content: space-between;

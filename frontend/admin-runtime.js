@@ -1073,7 +1073,7 @@ function renderMatrixMobileCards(matrixRows, months) {
         return;
     }
 
-    dom.absorptiveMobileCardsContainer.innerHTML = sortedRows.map(row => {
+    dom.absorptiveMobileCardsContainer.innerHTML = sortedRows.map((row, idx) => {
         const quota = row.total_quota || 0;
         const consumed = row.total_consumed || 0;
         const remaining = row.remaining !== undefined ? row.remaining : Math.max(0, quota - consumed);
@@ -1092,7 +1092,7 @@ function renderMatrixMobileCards(matrixRows, months) {
             monthChipsHtml += `
                 <div class="site-month-chip">
                     <span class="site-month-label">${escapeHtml(m)}</span>
-                    <span class="site-month-val">${val > 0 ? val.toLocaleString() : '-'}</span>
+                    <span class="site-month-val">${val > 0 ? val.toLocaleString() : '0'}</span>
                 </div>
             `;
         });
@@ -1107,30 +1107,42 @@ function renderMatrixMobileCards(matrixRows, months) {
                     <div>${getExpireStatusBadge(row.expire_date)}</div>
                 </div>
 
+                <!-- 重点突出：当前剩余可用余量与核准额度 -->
+                <div class="site-card-hero-metric" style="background: rgba(0, 229, 255, 0.04); border: 1px solid rgba(0, 229, 255, 0.15); border-radius: 10px; padding: 12px 14px; display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 2px;">当前剩余可用容量</div>
+                        <div class="font-outfit" style="font-size: 22px; font-weight: 800; ${remaining < 10000 ? 'color: #f87171;' : 'color: var(--neon-cyan);'}">
+                            ${remaining.toLocaleString()} <span style="font-size: 13px; font-weight: 500; color: var(--text-secondary);">m³</span>
+                        </div>
+                    </div>
+                    <div style="text-align: right;">
+                        <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 2px;">总核准容量</div>
+                        <div class="font-outfit" style="font-size: 16px; font-weight: 700; color: var(--text-primary);">
+                            ${quota.toLocaleString()} <span style="font-size: 12px; color: var(--text-secondary);">m³</span>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="site-card-progress-wrap">
                     <div class="site-progress-bar-bg">
                         <div class="site-progress-bar-fill" style="width: ${usagePct}%; background: ${progressColor};"></div>
                     </div>
                     <div class="site-progress-stats">
-                        <span>已消纳: <strong class="text-white">${consumed.toLocaleString()} m³</strong> (${usagePct}%)</span>
-                        <span>核准: ${quota.toLocaleString()} m³</span>
+                        <span>已消费: <strong class="text-white">${consumed.toLocaleString()} m³</strong> (${usagePct}%)</span>
+                        <span>还剩: <strong style="${remaining < 10000 ? 'color: #f87171;' : 'color: var(--neon-cyan);'}">${remaining.toLocaleString()} m³</strong></span>
                     </div>
                 </div>
 
-                <div class="site-month-grid">
-                    ${monthChipsHtml}
-                </div>
-
-                <div class="site-card-footer">
-                    <div>
-                        <span style="color: var(--text-secondary); font-size: 12px;">区间累计: </span>
-                        <strong class="text-cyan font-outfit" style="font-size: 15px;">${consumed.toLocaleString()} m³</strong>
+                <!-- 各月明细（按需展开） -->
+                <details style="font-size: 12px; border-top: 1px solid rgba(142, 170, 201, 0.12); padding-top: 8px; margin-top: 2px;">
+                    <summary style="cursor: pointer; color: var(--text-secondary); padding: 4px 0; outline: none; user-select: none; display: flex; align-items: center; justify-content: space-between;">
+                        <span><i class="fa-solid fa-chart-simple text-cyan" style="margin-right: 4px;"></i> 各月消费明细</span>
+                        <span style="font-size: 11px; color: var(--neon-cyan);">点击展开/折叠</span>
+                    </summary>
+                    <div class="site-month-grid" style="margin-top: 8px;">
+                        ${monthChipsHtml}
                     </div>
-                    <div>
-                        <span style="color: var(--text-secondary); font-size: 12px;">剩余额度: </span>
-                        <strong class="font-outfit" style="font-size: 15px; ${remaining < 10000 ? 'color: #f87171;' : 'color: #4ade80;'}">${remaining.toLocaleString()} m³</strong>
-                    </div>
-                </div>
+                </details>
             </div>
         `;
     }).join("");
@@ -1149,7 +1161,7 @@ function renderMatrixUI(data, isFromCache = false) {
 
     const rawRows = data.matrix || [];
     const matrixRows = sortMatrixRowsByExpiration(rawRows);
-    const months = data.months || ["5月", "6月", "7月", "8月"];
+    const months = data.months || ["4月", "5月", "6月", "7月", "8月"];
 
     // Update Cache Snapshot Banner
     if (dom.absorptiveCacheTimeText) {
@@ -1157,7 +1169,7 @@ function renderMatrixUI(data, isFromCache = false) {
         if (time) {
             dom.absorptiveCacheTimeText.innerHTML = `数据快照时间: <strong class="text-white">${escapeHtml(time)}</strong> ${isFromCache ? '（已载入本地持久化数据，无需重复拉取）' : '（刚刚同步并已保存至本地）'}`;
         } else {
-            dom.absorptiveCacheTimeText.textContent = "暂无历史查询快照，请点击【查询指定消纳量】拉取官方最新数据";
+            dom.absorptiveCacheTimeText.textContent = "暂无历史查询快照，请点击【刷新最新消纳量】拉取官方最新数据";
         }
     }
     if (dom.absorptiveCacheStatusPill) {
@@ -1166,20 +1178,17 @@ function renderMatrixUI(data, isFromCache = false) {
             : `<span class="badge badge-warning">⚠️ 待拉取同步</span>`;
     }
 
-    // 1. Render Table Header
+    // 1. Render Table Header (5 concise columns)
     const headerRow = $("absorptiveMatrixHeaderRow");
     if (headerRow) {
-        let headerHtml = `<th class="sticky-col" style="text-align: left; min-width: 200px;">土点名称</th>`;
-        months.forEach(m => {
-            headerHtml += `<th style="min-width: 90px; text-align: right;">${escapeHtml(m)}</th>`;
-        });
-        headerHtml += `
-            <th style="width: 120px; text-align: right; background: rgba(0,229,255,0.05);">合计消耗</th>
-            <th style="width: 120px; text-align: right;">总容量</th>
-            <th style="width: 120px; text-align: right; background: rgba(239,68,68,0.05);">剩余量</th>
+        headerRow.innerHTML = `
+            <th style="text-align: left; min-width: 200px;">土点名称</th>
+            <th style="width: 130px; text-align: right;">总核准容量</th>
+            <th style="width: 130px; text-align: right;">累计已消纳</th>
+            <th style="min-width: 150px; text-align: right; background: rgba(0,229,255,0.06); color: var(--neon-cyan);">当前剩余容量</th>
             <th style="min-width: 140px; text-align: center;">到期状态</th>
+            <th style="width: 100px; text-align: center;">月度明细</th>
         `;
-        headerRow.innerHTML = headerHtml;
     }
 
     // 2. Render Table Rows
@@ -1187,33 +1196,35 @@ function renderMatrixUI(data, isFromCache = false) {
         if (!matrixRows.length) {
             dom.absorptiveMatrixTableBody.innerHTML = `
                 <tr>
-                    <td colspan="${months.length + 5}" class="table-empty">
+                    <td colspan="6" class="table-empty">
                         <i class="fa-solid fa-folder-open empty-icon"></i>
                         <p>未找到符合条件的土点消纳数据</p>
                     </td>
                 </tr>
             `;
         } else {
-            dom.absorptiveMatrixTableBody.innerHTML = matrixRows.map(row => {
-                let monthlyTds = "";
-                months.forEach(m => {
-                    const val = row.monthly ? (row.monthly[m] || 0) : 0;
-                    monthlyTds += `<td style="text-align: right; font-family: var(--font-outfit);">${val > 0 ? val.toLocaleString() : '0'}</td>`;
-                });
-
+            dom.absorptiveMatrixTableBody.innerHTML = matrixRows.map((row, idx) => {
                 const isLowRemaining = row.remaining < 10000;
                 const remainingStyle = isLowRemaining ? "color: #f87171; font-weight: 800;" : "color: var(--neon-cyan); font-weight: 700;";
+                
+                let monthlySummaryText = months.map(m => `${m}: ${(row.monthly && row.monthly[m]) ? row.monthly[m].toLocaleString() : '0'}`).join(" | ");
 
                 return `
                     <tr>
-                        <td class="sticky-col" style="font-weight: 700; color: var(--text-primary); text-align: left;">
+                        <td style="font-weight: 700; color: var(--text-primary); text-align: left;">
                             <i class="fa-solid fa-mountain-city text-cyan" style="margin-right: 6px;"></i> ${escapeHtml(row.name)}
                         </td>
-                        ${monthlyTds}
-                        <td style="text-align: right; font-weight: 800; font-family: var(--font-outfit); background: rgba(0,229,255,0.03); color: var(--text-primary);">${row.total_consumed.toLocaleString()}</td>
-                        <td style="text-align: right; font-weight: 700; font-family: var(--font-outfit);">${row.total_quota.toLocaleString()}</td>
-                        <td style="text-align: right; font-family: var(--font-outfit); ${remainingStyle} background: rgba(239,68,68,0.03);">${row.remaining.toLocaleString()}</td>
+                        <td style="text-align: right; font-weight: 700; font-family: var(--font-outfit);">${row.total_quota.toLocaleString()} m³</td>
+                        <td style="text-align: right; font-weight: 700; font-family: var(--font-outfit); color: var(--text-primary);">${row.total_consumed.toLocaleString()} m³</td>
+                        <td style="text-align: right; font-family: var(--font-outfit); font-size: 15px; ${remainingStyle} background: rgba(0,229,255,0.03);">
+                            ${row.remaining.toLocaleString()} m³
+                        </td>
                         <td style="text-align: center;">${getExpireStatusBadge(row.expire_date)}</td>
+                        <td style="text-align: center;">
+                            <button class="btn btn-secondary btn-small" type="button" style="padding: 2px 8px; font-size: 11px;" title="${escapeHtml(monthlySummaryText)}" onclick="alert('${escapeHtml(row.name)} 各月明细：\\n${monthlySummaryText.replace(/ \| /g, '\\n')}')">
+                                <i class="fa-solid fa-chart-simple text-cyan"></i> 明细
+                            </button>
+                        </td>
                     </tr>
                 `;
             }).join("");
@@ -1243,21 +1254,21 @@ async function queryAbsorptiveMatrixStats() {
     }
 
     const selectedSite = dom.absorptiveSelectName ? dom.absorptiveSelectName.value : "全部土点";
-    const selectedYear = dom.absorptiveSelectYear ? parseInt(dom.absorptiveSelectYear.value) : 2026;
-    const startMonth = dom.absorptiveStartMonth ? parseInt(dom.absorptiveStartMonth.value) : 5;
-    const endMonth = dom.absorptiveEndMonth ? parseInt(dom.absorptiveEndMonth.value) : 8;
+    const curDate = new Date();
+    const curYear = curDate.getFullYear();
+    const curMonth = curDate.getMonth() + 1; // e.g. 8
 
     if (dom.queryMatrixStatsBtn) {
         dom.queryMatrixStatsBtn.disabled = true;
-        dom.queryMatrixStatsBtn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> 正在跨月拉取...`;
+        dom.queryMatrixStatsBtn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> 正在拉取...`;
     }
 
     if (dom.absorptiveMatrixTableBody) {
         dom.absorptiveMatrixTableBody.innerHTML = `
             <tr>
-                <td colspan="12" class="table-empty">
+                <td colspan="6" class="table-empty">
                     <i class="fa-solid fa-circle-notch fa-spin empty-icon" style="font-size: 24px;"></i>
-                    <p>正在跨月份拉取 [${escapeHtml(selectedSite)}] 消纳数据并保存快照，请稍候...</p>
+                    <p>正在拉取 4月~${curMonth}月 [${escapeHtml(selectedSite)}] 消纳数据并保存快照，请稍候...</p>
                 </td>
             </tr>
         `;
@@ -1266,7 +1277,7 @@ async function queryAbsorptiveMatrixStats() {
         dom.absorptiveMobileCardsContainer.innerHTML = `
             <div class="glass-panel" style="text-align: center; padding: 30px 20px; color: var(--text-secondary);">
                 <i class="fa-solid fa-circle-notch fa-spin empty-icon" style="font-size: 28px; margin-bottom: 8px;"></i>
-                <p>正在跨月份拉取 [${escapeHtml(selectedSite)}] 消纳数据并保存快照，请稍候...</p>
+                <p>正在拉取 4月~${curMonth}月 [${escapeHtml(selectedSite)}] 消纳数据并保存快照，请稍候...</p>
             </div>
         `;
     }
@@ -1278,9 +1289,9 @@ async function queryAbsorptiveMatrixStats() {
             body: JSON.stringify({
                 authtoken: appConfig.authtoken,
                 absorptivename: selectedSite === "全部土点" ? "" : selectedSite,
-                year: selectedYear,
-                startMonth: Math.min(startMonth, endMonth),
-                endMonth: Math.max(startMonth, endMonth),
+                year: curYear,
+                startMonth: 4,
+                endMonth: curMonth,
                 totalProjectVolume: 938164.0
             })
         });
@@ -1296,7 +1307,7 @@ async function queryAbsorptiveMatrixStats() {
         if (dom.absorptiveMatrixTableBody) {
             dom.absorptiveMatrixTableBody.innerHTML = `
                 <tr>
-                    <td colspan="12" class="table-empty text-red">
+                    <td colspan="6" class="table-empty text-red">
                         <i class="fa-solid fa-triangle-exclamation empty-icon" style="color: #f87171;"></i>
                         <p>查询失败: ${escapeHtml(err.message)}</p>
                     </td>
@@ -1314,7 +1325,7 @@ async function queryAbsorptiveMatrixStats() {
     } finally {
         if (dom.queryMatrixStatsBtn) {
             dom.queryMatrixStatsBtn.disabled = false;
-            dom.queryMatrixStatsBtn.innerHTML = `<i class="fa-solid fa-magnifying-glass"></i> 查询指定消纳量`;
+            dom.queryMatrixStatsBtn.innerHTML = `<i class="fa-solid fa-rotate"></i> 刷新最新消纳量`;
         }
     }
 }
@@ -2375,6 +2386,20 @@ document.addEventListener("DOMContentLoaded", () => {
     safeAddListener(dom.saveQuotaBtn, "click", saveAbsorptiveQuota);
     safeAddListener(dom.viewModeTableBtn, "click", () => setAbsorptiveViewMode("table"));
     safeAddListener(dom.viewModeCardBtn, "click", () => setAbsorptiveViewMode("card"));
+    safeAddListener(dom.absorptiveSelectName, "change", () => {
+        if (cachedMatrixData) {
+            const selectedSite = dom.absorptiveSelectName ? dom.absorptiveSelectName.value : "全部土点";
+            const fullMatrix = cachedMatrixData.matrix || [];
+            let filteredRows = fullMatrix;
+            if (selectedSite && selectedSite !== "全部土点") {
+                filteredRows = fullMatrix.filter(r => 
+                    selectedSite.toLowerCase().includes(r.name.toLowerCase()) || 
+                    r.name.toLowerCase().includes(selectedSite.toLowerCase())
+                );
+            }
+            renderMatrixUI({ ...cachedMatrixData, matrix: filteredRows }, true);
+        }
+    });
 
     // Auto default view mode according to screen size
     if (window.innerWidth <= 768) {

@@ -915,7 +915,7 @@ class AbsorptiveMatrixStatsRequest(BaseModel):
     authtoken: str
     absorptivename: str = ""
     year: int = 2026
-    startMonth: int = 5
+    startMonth: int = 4
     endMonth: int = 8
     totalProjectVolume: float = 938164.0
 
@@ -996,6 +996,10 @@ async def get_local_matrix_cache():
     """
     获取本地已持久化保存的土点矩阵数据快照，供前端首屏瞬时秒开展示，避免每次重复调用接口。
     """
+    from datetime import date
+    curr_month = date.today().month
+    default_months = [f"{m}月" for m in range(4, max(4, curr_month) + 1)]
+
     cache = _load_matrix_cache()
     if cache and cache.get("matrix"):
         sorted_matrix = _sort_matrix_by_expiration(cache.get("matrix", []))
@@ -1004,7 +1008,7 @@ async def get_local_matrix_cache():
             "has_data": True,
             "last_updated": cache.get("last_updated", ""),
             "year": cache.get("year", 2026),
-            "months": cache.get("months", ["5月", "6月", "7月", "8月"]),
+            "months": cache.get("months", default_months),
             "matrix": sorted_matrix,
             "summary": cache.get("summary", {})
         }
@@ -1013,7 +1017,7 @@ async def get_local_matrix_cache():
     config_data = _load_sites_config()
     sites_list = config_data.get("sites", DEFAULT_ABSORPTIVE_SITES_CONFIG)
     total_project_volume = float(config_data.get("total_project_volume", 938164.0))
-    months = ["5月", "6月", "7月", "8月"]
+    months = default_months
     default_rows = []
     total_handled_capacity = 0.0
     for s in sites_list:
@@ -1037,22 +1041,6 @@ async def get_local_matrix_cache():
         "year": 2026,
         "months": months,
         "matrix": sorted_default_rows,
-        "summary": {
-            "total_project_volume": round(total_project_volume, 2),
-            "handled_capacity": round(total_handled_capacity, 2),
-            "unhandled_volume": round(max(0.0, total_project_volume - total_handled_capacity), 2),
-            "total_consumed": 0.0,
-            "total_remaining": round(total_handled_capacity, 2)
-        }
-    }
-
-    return {
-        "success": True,
-        "has_data": False,
-        "last_updated": "",
-        "year": 2026,
-        "months": months,
-        "matrix": default_rows,
         "summary": {
             "total_project_volume": round(total_project_volume, 2),
             "handled_capacity": round(total_handled_capacity, 2),
