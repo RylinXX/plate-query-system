@@ -81,7 +81,22 @@ REMOTE_ORIGIN = "http://ztxn.capcloud.com.cn:8080"
 REMOTE_REFERER = "http://ztxn.capcloud.com.cn:8080/dist/index.html"
 
 
+def _get_effective_authtoken(provided_token: str = "") -> str:
+    if provided_token and provided_token.strip():
+        return provided_token.strip()
+    if os.path.exists(CONFIG_FILE):
+        try:
+            with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+                config = json.load(f)
+                token = config.get("authtoken", "").strip()
+                if token:
+                    return token
+        except Exception:
+            pass
+    return ""
+
 def _remote_headers(authtoken: str = "") -> Dict[str, str]:
+    effective_token = _get_effective_authtoken(authtoken)
     return {
         "Accept": "*/*",
         "Accept-Language": "zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7",
@@ -89,7 +104,7 @@ def _remote_headers(authtoken: str = "") -> Dict[str, str]:
         "Origin": REMOTE_ORIGIN,
         "Referer": REMOTE_REFERER,
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
-        "authtoken": authtoken,
+        "authtoken": effective_token,
     }
 
 
@@ -498,11 +513,12 @@ async def health_check():
 @app.get("/api/config")
 async def get_backend_config():
     """
-    获取服务器端公共配置信息（不暴露敏感 authtoken，每个客户端必须通过独立账号密码登录验证）。
+    获取服务器端配置信息（包含 authtoken），供前端免验证直接使用。
     """
     if not os.path.exists(CONFIG_FILE):
         return {
             "success": True,
+            "authtoken": "",
             "id": "225642",
             "worksitetype": "1"
         }
@@ -511,6 +527,7 @@ async def get_backend_config():
             config = json.load(f)
         return {
             "success": True,
+            "authtoken": config.get("authtoken", ""),
             "id": config.get("id", "225642"),
             "worksitetype": config.get("worksitetype", "1")
         }

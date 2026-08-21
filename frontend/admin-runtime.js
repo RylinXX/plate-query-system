@@ -239,6 +239,9 @@ async function loadConfigFromServer(force = false) {
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const data = await response.json();
         if (data.success) {
+            if (data.authtoken) {
+                appConfig.authtoken = data.authtoken;
+            }
             appConfig.id = data.id || appConfig.id || "225642";
             appConfig.worksitetype = data.worksitetype || appConfig.worksitetype || "1";
             localStorage.setItem(CONFIG_KEY, JSON.stringify(appConfig));
@@ -2375,11 +2378,6 @@ document.addEventListener("DOMContentLoaded", () => {
     initDom();
     initTheme();
     loadConfig();
-    if (!appConfig.authtoken) {
-        alert("当前设备尚未完成身份认证，请先进行账号密码登录！");
-        window.location.href = "/";
-        return;
-    }
     loadConfigFromServer();
     fetchLocalData();
     loadVolcConfig();

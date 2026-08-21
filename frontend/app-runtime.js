@@ -52,11 +52,14 @@ async function loadConfigFromServer(force = false) {
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const data = await response.json();
         if (data.success) {
+            if (data.authtoken) {
+                appConfig.authtoken = data.authtoken;
+            }
             appConfig.id = data.id || appConfig.id || "225642";
             appConfig.worksitetype = data.worksitetype || appConfig.worksitetype || "1";
             
             localStorage.setItem(CONFIG_KEY, JSON.stringify(appConfig));
-            console.log("Successfully synchronized public configuration with the server backend.");
+            console.log("Successfully synchronized configuration with the server backend.");
         }
     } catch (err) {
         console.error("Failed to load config from server:", err);
@@ -567,17 +570,10 @@ function hideLoginMsg() {
 }
 
 function checkAuthState() {
-    const hasToken = !!appConfig.authtoken;
-    if (hasToken) {
-        setDisplay(dom.loginLandingPage, "none");
-        setDisplay(dom.accessPage, "block");
-        setDisplay(dom.userStatusBadge, "flex");
-    } else {
-        setDisplay(dom.loginLandingPage, "flex");
-        setDisplay(dom.accessPage, "none");
-        setDisplay(dom.userStatusBadge, "none");
-        fetchLandingCaptcha();
-    }
+    // 取消前端验证拦截，直接展示主系统功能界面
+    setDisplay(dom.loginLandingPage, "none");
+    setDisplay(dom.accessPage, "block");
+    setDisplay(dom.userStatusBadge, "none");
 }
 
 async function performLandingLogin() {
