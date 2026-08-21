@@ -498,12 +498,11 @@ async def health_check():
 @app.get("/api/config")
 async def get_backend_config():
     """
-    获取服务器端配置的 authtoken 等信息，供前端在没有本地缓存或需要同步时拉取。
+    获取服务器端公共配置信息（不暴露敏感 authtoken，每个客户端必须通过独立账号密码登录验证）。
     """
     if not os.path.exists(CONFIG_FILE):
         return {
             "success": True,
-            "authtoken": "",
             "id": "225642",
             "worksitetype": "1"
         }
@@ -512,7 +511,6 @@ async def get_backend_config():
             config = json.load(f)
         return {
             "success": True,
-            "authtoken": config.get("authtoken", ""),
             "id": config.get("id", "225642"),
             "worksitetype": config.get("worksitetype", "1")
         }

@@ -107,23 +107,19 @@ async function loadConfigFromServer(force = false) {
         const response = await fetch(`${BACKEND_URL}/api/config`, { cache: "no-store" });
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const data = await response.json();
-        if (data.success && data.authtoken) {
-            const hasLocalToken = !!appConfig.authtoken;
-            if (force || !hasLocalToken || appConfig.authtoken !== data.authtoken) {
-                appConfig.authtoken = data.authtoken;
-                appConfig.id = data.id || appConfig.id || "225642";
-                appConfig.worksitetype = data.worksitetype || appConfig.worksitetype || "1";
-                
-                localStorage.setItem(CONFIG_KEY, JSON.stringify(appConfig));
-                
-                if (tokenInput) tokenInput.value = appConfig.authtoken;
-                if (worksiteIdInput) worksiteIdInput.value = appConfig.id;
-                if (worksiteTypeInput) worksiteTypeInput.value = appConfig.worksitetype;
-                
-                console.log("Successfully synchronized configuration with the server backend.");
-                if (force) {
-                    alert("🎉 已成功从服务端同步最新接口配置！");
-                }
+        if (data.success) {
+            appConfig.id = data.id || appConfig.id || "225642";
+            appConfig.worksitetype = data.worksitetype || appConfig.worksitetype || "1";
+            
+            localStorage.setItem(CONFIG_KEY, JSON.stringify(appConfig));
+            
+            if (tokenInput) tokenInput.value = appConfig.authtoken || "";
+            if (worksiteIdInput) worksiteIdInput.value = appConfig.id;
+            if (worksiteTypeInput) worksiteTypeInput.value = appConfig.worksitetype;
+            
+            console.log("Successfully synchronized public configuration with the server backend.");
+            if (force) {
+                alert("🎉 已成功从服务端同步公共配置！");
             }
         }
     } catch (err) {

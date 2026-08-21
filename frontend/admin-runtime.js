@@ -61,8 +61,9 @@ function isNewEnergyVehicle(plate) {
 // Dom Initializer
 function initDom() {
     dom = {
-        // Theme & Tabs
+        // Theme & Tabs & Auth
         themeToggleBtn: $("themeToggleBtn"),
+        adminLogoutBtn: $("adminLogoutBtn"),
         tabOcrBtn: $("tabOcrBtn"),
         tabWaybillBtn: $("tabWaybillBtn"),
         tabAbsorptiveBtn: $("tabAbsorptiveBtn"),
@@ -215,6 +216,22 @@ function initDom() {
     };
 }
 
+function loadConfig() {
+    const saved = localStorage.getItem(CONFIG_KEY);
+    if (saved) {
+        try {
+            const parsed = JSON.parse(saved);
+            appConfig = {
+                authtoken: parsed.authtoken || DEFAULT_TOKEN,
+                id: parsed.id || "225642",
+                worksitetype: parsed.worksitetype || "1"
+            };
+        } catch {
+            localStorage.removeItem(CONFIG_KEY);
+        }
+    }
+}
+
 // Configuration sync
 async function loadConfigFromServer(force = false) {
     try {
@@ -222,18 +239,17 @@ async function loadConfigFromServer(force = false) {
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const data = await response.json();
         if (data.success) {
-            appConfig.authtoken = data.authtoken || "";
             appConfig.id = data.id || appConfig.id || "225642";
             appConfig.worksitetype = data.worksitetype || appConfig.worksitetype || "1";
             localStorage.setItem(CONFIG_KEY, JSON.stringify(appConfig));
             
-            if (dom.tokenInput) dom.tokenInput.value = appConfig.authtoken;
+            if (dom.tokenInput) dom.tokenInput.value = appConfig.authtoken || "";
             if (dom.worksiteIdInput) dom.worksiteIdInput.value = appConfig.id;
             if (dom.worksiteTypeInput) dom.worksiteTypeInput.value = appConfig.worksitetype;
             
-            console.log("Successfully loaded token configs from server.");
+            console.log("Successfully loaded configs from server.");
             if (force) {
-                alert("🎉 已成功从服务端拉取保存的配置！");
+                alert("🎉 已成功从服务端拉取公共配置！");
             }
         }
     } catch (err) {
@@ -2346,10 +2362,24 @@ async function saveConfig() {
     }
 }
 
+function handleAdminLogout() {
+    if (confirm("确定要退出登录并清除当前设备的身份凭证吗？")) {
+        appConfig.authtoken = "";
+        localStorage.removeItem(CONFIG_KEY);
+        window.location.href = "/";
+    }
+}
+
 // Event Listeners setup
 document.addEventListener("DOMContentLoaded", () => {
     initDom();
     initTheme();
+    loadConfig();
+    if (!appConfig.authtoken) {
+        alert("当前设备尚未完成身份认证，请先进行账号密码登录！");
+        window.location.href = "/";
+        return;
+    }
     loadConfigFromServer();
     fetchLocalData();
     loadVolcConfig();
@@ -2360,6 +2390,7 @@ document.addEventListener("DOMContentLoaded", () => {
     initWaybillDates();
 
     // Key configuration
+    safeAddListener(dom.adminLogoutBtn, "click", handleAdminLogout);
     safeAddListener(dom.saveVolcConfigBtn, "click", saveVolcConfig);
     safeAddListener(dom.savePublicApiConfigBtn, "click", savePublicApiConfig);
     safeAddListener(dom.generateApiKeyBtn, "click", generateApiKey);
